@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Симулятор жизни</title>
+<meta name="description" content="Бесплатное приложение психолога Таисии Штеменко: дела превращаются в квесты, а награды — в реальные покупки">
+<meta property="og:title" content="Симулятор жизни">
+<meta property="og:description" content="Бесплатное приложение психолога Таисии Штеменко: дела превращаются в квесты, а награды — в реальные покупки">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,400;1,500&family=Manrope:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+<style>
+.theme-ls{--accent:#6A55C9;--accent-soft:#ECE8FA;--surface:#F2EFFB;--cover:#EFEAFB}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .theme-ls{--accent:#B7A6FF;--accent-soft:#2A2440;--surface:#25213A;--cover:#25213A}}
+:root[data-theme="dark"] .theme-ls{--accent:#B7A6FF;--accent-soft:#2A2440;--surface:#25213A;--cover:#25213A}
+.ls-hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:48px;align-items:center;padding-block:32px 56px}
+.ls-hero h1{font-size:clamp(44px,8vw,72px);margin:14px 0 16px}
+.ls-hero .sub{font-family:var(--display);font-style:italic;font-size:clamp(19px,2.4vw,23px);line-height:1.4;color:var(--muted);max-width:30ch}
+.free{display:inline-block;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase;padding:6px 12px;border-radius:99px}
+.ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.phone{justify-self:center;width:340px;max-width:100%;aspect-ratio:9/18.5;border-radius:44px;background:#15121F;padding:12px;box-shadow:0 30px 60px -30px rgba(40,20,80,.5)}
+.phone iframe{width:100%;height:100%;border:0;border-radius:34px;background:#15121F;display:block}
+.phone-note{text-align:center;font-size:13px;color:var(--muted);margin-top:10px}
+.feat{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:26px}
+.feat div{background:var(--surface);border-radius:16px;padding:22px}
+.feat b{display:block;font-family:var(--display);font-weight:600;font-size:20px;margin-bottom:6px}
+.feat span{color:var(--muted);font-size:15px}
+.rules{list-style:none;padding:0;margin:26px 0 0;counter-reset:r;display:flex;flex-direction:column;gap:22px}
+.rules>li{counter-increment:r;display:grid;grid-template-columns:44px minmax(0,1fr);gap:4px 14px}
+.rules>li::before{content:counter(r);grid-row:span 3;width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-content:center;font-family:var(--display);font-weight:700;font-size:19px}
+.rules h3{font-size:21px}
+.rules p{color:var(--fg)}
+.steps-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;padding:0;list-style:none;counter-reset:s}
+.steps-list li{counter-increment:s;background:var(--surface);border-radius:99px;padding:6px 14px;font-size:14px}
+.steps-list li::before{content:counter(s) ". ";color:var(--accent);font-weight:700}
+.install{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:22px}
+.install div{border:1.5px solid var(--line);border-radius:16px;padding:20px}
+.install b{display:block;margin-bottom:6px}
+.install span{color:var(--muted);font-size:15px}
+@media (max-width:820px){.ls-hero,.feat,.install{grid-template-columns:minmax(0,1fr)}.phone,.phone-note{display:none}}
+</style>
+<div class="wrap theme-ls">
+<nav class="nav">
+<a class="me" href="./">Таисия Штеменко <span>· психолог</span></a>
+<a class="link" href="./">Все гайды</a>
+</nav>
+<header class="ls-hero">
+<div>
+<span class="free">Бесплатно · приложение</span>
+<h1>Симулятор жизни</h1>
+<p class="sub">Игра, в которой дела превращаются в квесты, а награды — в реальные покупки</p>
+<div class="ctas">
+<a class="btn" href="https://shtemenko-t.github.io/lifesim/">Открыть приложение →</a>
+<a class="btn ghost" href="https://t.me/letsplay_sht">Как я играю — в моём канале</a>
+</div>
+<p class="muted" style="margin-top:18px;font-size:15px">Работает на iPhone, Android и компьютере. Устанавливается на экран «Домой», как обычное приложение</p>
+</div>
+<div>
+<div class="phone"><iframe src="https://shtemenko-t.github.io/lifesim/" title="Симулятор жизни" loading="lazy"></iframe></div>
+<p class="phone-note">Можно попробовать прямо здесь</p>
+</div>
+</header>
+<section class="read" aria-labelledby="why-h" style="padding-top:0">
+<div class="eyebrow">Откуда игра</div>
+<h2 id="why-h" style="margin-top:10px">Сначала она была табличкой</h2>
+<p style="margin-top:14px">Мой Симулятор жизни долго жил в Google-таблице: когда я его придумала, у меня не было компьютера, чтобы собрать приложение. Теперь есть, и оно сделано. Возможно, для разработчиков игр оно посредственное, но для меня, которая в этом не шарит, это гениальный уровень</p>
+</section>
+<section aria-labelledby="how-h" style="padding-top:0">
+<div class="eyebrow">Как устроено</div>
+<h2 id="how-h" style="margin-top:10px">Что там можно</h2>
+<div class="feat">
+<div><b>Квесты</b><span>Ветки с задачами, названия пишешь сама. Например, у меня была ветка «Апостили»: написать заявление на госуслугах, сходить в МФЦ, сдать документы</span></div>
+<div><b>Награда за каждую задачу</b><span>Чем сложнее задача, тем больше награда. За заявление я получаю 250 ₽, за готовый диплом с апостилем — 400. Цену ставлю с учётом сопротивления: за сколько я готова на это пойти</span></div>
+<div><b>Бонусы и кошелёк</b><span>1 бонус = 1 рубль. Кошелёк — это реальные деньги, которые я откладываю на игру: 10% с дохода, процент можно настроить. Купить что-то можно, только когда хватает и бонусов, и денег</span></div>
+<div><b>Магазин желаний</b><span>Список того, что хочется себе купить. Так появляется привязка к реальности: заслужила — куплю, когда будут деньги</span></div>
+</div>
+</section>
+<section class="read" aria-labelledby="play-h">
+<div class="eyebrow">Правила игры</div>
+<h2 id="play-h" style="margin-top:10px">Как играть, чтобы работало</h2>
+<ol class="rules">
+<li>
+<h3>Разбей дело на маленькие шаги</h3>
+<p>Чем больше сопротивление, тем меньше должны быть шаги. Не «почистить хату», а:</p>
+<ul class="steps-list"><li>Вынести мусор</li><li>Пропылесосить комнату 1</li><li>Пропылесосить комнату 2</li><li>Пропылесосить прихожую</li><li>Поменять полотенца в ванной</li><li>Закинуть стирку</li><li>Развесить бельё</li></ul>
+</li>
+<li>
+<h3>Награда за каждое действие</h3>
+<p>Так ты подсаживаешься на дофаминовое подкрепление. Дофамин — гормон ожидания награды, он мотивирует лучше всего. Это на нём мы сидим, залипая в рилсах: не потому, что видосы классные, а потому что надеемся, как в казино, что следующий будет классным</p>
+<p class="quote">Когда я ловила талончики к стоматологу, каждый заход на сайт с нулём свободных мест ощущался как зря потраченное время. Когда это стало оплачиваемой задачей за 50 ₽, мне стало пофиг, что талона нет: это было законченное действие</p>
+</li>
+<li>
+<h3>Награда достаточного размера</h3>
+<p>Минимально такая, за которую ты готова это дело сделать. Не меньше, но и не больше. Меньше — не сработает. Больше — действие потеряет ценность, а игра интерес. И если пообещать себе награду и не дать её, сопротивление вернётся и станет сильнее</p>
+</li>
+<li>
+<h3>Принимай правила</h3>
+<p>Частый вопрос в терапии: как работать с наградами, если и так можно себя порадовать без всяких действий? Если мы выбираем играть, мы принимаем правила игры. В симс тоже можно прописать motherlode и не мучиться, но смысл в процессе и достижениях. Игра не сделает работу над собой за тебя — это ты выбираешь соблюдать правила, чтобы делать дела было веселее</p>
+</li>
+</ol>
+</section>
+<section aria-labelledby="inst-h">
+<div class="eyebrow">Установка</div>
+<h2 id="inst-h" style="margin-top:10px">Как поставить на экран «Домой»</h2>
+<div class="install">
+<div><b>iPhone</b><span>Открой ссылку в Safari → «Поделиться» → «На экран Домой»</span></div>
+<div><b>Android</b><span>Открой ссылку в Chrome → ⋮ → «Установить приложение»</span></div>
+<div><b>Компьютер</b><span>В Chrome или Edge — значок установки справа в адресной строке. Или просто сохрани в закладки</span></div>
+</div>
+<div class="note" style="margin-top:18px">
+<b>Про данные</b>
+Всё хранится только на твоём устройстве: я ничего не вижу, а приложение не синхронизируется между телефоном и компьютером. Чтобы не потерять прогресс, иногда делай экспорт в настройках — так же можно перенести игру на новый телефон
+</div>
+</section>
+<section>
+<div class="final">
+<div>
+<h2>Попробуй сыграть</h2>
+<p class="muted" style="margin-top:8px">Я не вижу, сколько раз его открыли, так что делись, если попробуешь</p>
+</div>
+<div class="ctas" style="margin:0">
+<a class="btn" href="https://shtemenko-t.github.io/lifesim/">Открыть приложение →</a>
+<a class="btn ghost" href="https://t.me/letsplay_sht">Канал «Летсплей жизнь»</a>
+</div>
+</div>
+</section>
+<footer>
+<span>© Таисия Штеменко</span>
+<span><a href="./">Гайды</a> · <a href="https://taplink.cc/shtemenko_t">Taplink</a> · <a href="https://t.me/letsplay_sht">Летсплей жизнь</a></span>
+</footer>
+</div>
+
+</body>
+</html>
