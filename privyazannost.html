@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Типы привязанности — гайд</title>
+<meta name="description" content="Гайд-практикум психолога Таисии Штеменко: тревожный и избегающий тип в паре, в деньгах и в отношениях с собой">
+<meta property="og:title" content="Типы привязанности — гайд">
+<meta property="og:description" content="Гайд-практикум психолога Таисии Штеменко: тревожный и избегающий тип в паре, в деньгах и в отношениях с собой">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,400;1,500&family=Manrope:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+<style>
+.theme-pr{--accent:#86517A;--accent-soft:#F1E6EE;--surface:#F4EDF2;--cover:#EEE3EC;--cover-2:#DBC6D6;--cover-ring:#BE9CB6}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .theme-pr{--accent:#D39BC5;--accent-soft:#33232F;--surface:#2A2229;--cover:#2A2229;--cover-2:#45344A;--cover-ring:#7E5F78}}
+:root[data-theme="dark"] .theme-pr{--accent:#D39BC5;--accent-soft:#33232F;--surface:#2A2229;--cover:#2A2229;--cover-2:#45344A;--cover-ring:#7E5F78}
+.meter{height:12px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:14px;display:flex}
+.meter i{display:block;height:100%;background:var(--accent);transition:width .25s ease}
+.meter-lab{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:6px}
+.chase{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:stretch;margin-top:22px}
+.chase .st{background:var(--surface);border-radius:14px;padding:16px;font-size:15px;color:var(--muted)}
+.chase .st b{display:block;font-family:var(--display);font-weight:600;font-size:18px;color:var(--fg);margin-bottom:4px}
+.chase .ar{align-self:center;color:var(--accent);font-weight:700;font-size:20px}
+@media (max-width:640px){.chase{grid-template-columns:minmax(0,1fr)}.chase .ar{justify-self:center;transform:rotate(90deg)}}
+</style>
+<div class="wrap theme-pr">
+<nav class="nav">
+<a class="me" href="./">Таисия Штеменко <span>· психолог</span></a>
+<a class="link" href="./">Все гайды</a>
+</nav>
+<header class="hero">
+<div>
+<div class="eyebrow">Гайд-практикум · PDF</div>
+<h1>Типы привязанности</h1>
+<p class="sub">Тревожный и избегающий тип: в паре, в деньгах и в отношениях с собой</p>
+<div class="buy">
+<a class="btn" href="#">Купить гайд →</a>
+<span class="price">790 ₽</span>
+</div>
+<ul class="facts">
+<li>31 страница</li><li>7 глав и бонус про деньги</li><li>5 рабочих листов</li><li>Шпаргалка</li>
+</ul>
+</div>
+<div class="cover" aria-hidden="true">
+<div class="c1"></div><div class="c2"></div><div class="c3"></div>
+<div class="k">Гайд-практикум</div>
+<div class="t">Типы<br>привязан&shy;ности</div>
+<div class="s">В паре, в деньгах и в отношениях с собой</div>
+<div class="a"><b>Таисия Штеменко</b>психолог</div>
+</div>
+</header>
+<section class="test" aria-labelledby="test-h">
+<div class="test-grid">
+<div>
+<div class="eyebrow">Мини-тест из гайда</div>
+<h2 id="test-h" style="margin-top:10px">Куда ты больше склоняешься?</h2>
+<p class="muted" style="margin-top:10px">Чистых типов не бывает. Отметь то, в чём узнаёшь себя, и посмотри на пропорцию</p>
+<div class="checks">
+<label><input type="checkbox" id="a1" data-t="a"><span>Сложно выдерживать неопределённость: либо скажи, что не любишь, либо подтверждай обратное каждые 10 минут</span></label>
+<label><input type="checkbox" id="v1" data-t="v"><span>Быстро сближаюсь, а потом пугаюсь, что слишком близко, и увеличиваю дистанцию</span></label>
+<label><input type="checkbox" id="a2" data-t="a"><span>Чувствую малейшее изменение настроения партнёра и принимаю его на свой счёт</span></label>
+<label><input type="checkbox" id="v2" data-t="v"><span>В разлуке чувствую свободу и продуктивность</span></label>
+<label><input type="checkbox" id="a3" data-t="a"><span>Сливаюсь с партнёром: его увлечения, его график, все мысли о нём</span></label>
+<label><input type="checkbox" id="v3" data-t="v"><span>Страшно показывать уязвимость, всегда держу пути отхода</span></label>
+<label><input type="checkbox" id="a4" data-t="a"><span>Деньги утекают непонятно куда, сложно выдерживать большую сумму на счёте</span></label>
+<label><input type="checkbox" id="v4" data-t="v"><span>Жалко вкладываться в себя и в отношения без гарантии, что окупится</span></label>
+</div>
+</div>
+<div class="result" aria-live="polite">
+<div class="n"><span id="cnt">0</span><small> из 8</small></div>
+<div class="meter" aria-hidden="true"><i id="ma" style="width:50%"></i></div>
+<div class="meter-lab"><span>тревожный</span><span>избегающий</span></div>
+<p id="verdict">Отмечай пункты, и здесь появится результат</p>
+</div>
+</div>
+</section>
+<section class="read" aria-labelledby="toc-h">
+<div class="eyebrow">Содержание</div>
+<h2 id="toc-h" style="margin-top:10px">Что внутри</h2>
+<ol class="toc">
+<li><span class="n">1</span><span class="h">Откуда взялись типы привязанности</span><span class="d">Немного теории и два наблюдения, без которых свой тип не определить</span></li>
+<li><span class="n">2</span><span class="h">Общая травма</span><span class="d">Страх отвержения и три способа с ним справляться: закрываться, суетиться, метаться</span></li>
+<li><span class="n">3</span><span class="h">Тревожный тип</span><span class="d">Характер, кто привлекает и почему, отношения, деньги — в формате чек-листа</span></li>
+<li><span class="n">4</span><span class="h">Избегающий тип</span><span class="d">Характер, отношения, деньги и куда уходит энергия</span></li>
+<li><span class="n">5</span><span class="h">Тревожно-избегающий тип</span><span class="d">Качели и почему здесь нужна терапия</span></li>
+<li><span class="n">6</span><span class="h">Отношения с собой</span><span class="d">Что добавить тревожным, что избегающим и главный вопрос для каждого типа</span></li>
+<li><span class="n">7</span><span class="h">Понимание партнёров</span><span class="d">Почему травмы так идеально сходятся и как выйти из догонялок</span></li>
+<li><span class="n">Б</span><span class="h">Бонус: деньги и тип привязанности</span><span class="d">Как каждый тип тратит, копит и зарабатывает, и что с этим делать</span></li>
+</ol>
+<div class="extras">
+<span class="chip">Вопросы для стабилизации</span><span class="chip">Мой тип</span><span class="chip">Сверка с реальностью</span><span class="chip">Почему я выбираю партнёра</span><span class="chip">Мои дефициты</span><span class="chip">Деньги и ощущения</span>
+</div>
+</section>
+<section class="read" aria-labelledby="frag-h">
+<div class="fragment">
+<span class="tag">Фрагмент главы 7</span>
+<h2 id="frag-h">Травмы идеально сходятся</h2>
+<p style="margin-top:14px">Чаще всего мы в отношениях с противоположным типом. И отслеживая свои триггеры, можно наткнуться на триггер партнёра, который в этот момент работает в противоположную сторону</p>
+<div class="chase">
+<div class="st"><b>Тревожная</b>чувствует страх и начинает догонять</div>
+<div class="ar">→</div>
+<div class="st"><b>Избегающий</b>и так напуган, бежит ещё быстрее</div>
+<div class="ar">→</div>
+<div class="st"><b>Оба</b>обвиняют друг друга в нечуткости</div>
+</div>
+<p class="quote">Страх просто так не включается. Если мне хочется догонять, избегающий уже испуган и готов бежать</p>
+<p class="muted" style="margin-top:18px;font-size:15px">В гайде дальше: как выйти из этих догонялок и какой маячок страха взять избегающим, если свои чувства они не замечают</p>
+</div>
+</section>
+<section aria-labelledby="who-h">
+<div class="two">
+<div>
+<div class="eyebrow">Для кого</div>
+<h2 id="who-h" style="margin-top:10px">Гайд подойдёт, если</h2>
+<ul class="dots">
+<li><span>ты раз за разом попадаешь в похожие отношения и хочешь понять почему</span></li>
+<li><span>тебя бросает то в страх потерять партнёра, то в желание сбежать</span></li>
+<li><span>хочешь лучше понимать партнёра и перестать ссориться по одному и тому же сценарию</span></li>
+</ul>
+</div>
+<div class="note" style="align-self:start">
+<b>Важно</b>
+Гайд не заменяет терапию. Если твои реакции в отношениях непредсказуемы даже для тебя самой, а качели сильно мешают жить, начни с работы со специалистом
+</div>
+</div>
+</section>
+<section aria-labelledby="how-h">
+<div class="eyebrow">Как получить</div>
+<h2 id="how-h" style="margin-top:10px">Гайд придёт в Telegram сразу после оплаты</h2>
+<ol class="steps">
+<li><b>Нажми «Купить гайд»</b><span>Откроется бот Tribute в Telegram</span></li>
+<li><b>Оплати в боте</b><span>Картой, прямо внутри Telegram</span></li>
+<li><b>Получи PDF</b><span>Бот сразу пришлёт файл в личные сообщения</span></li>
+</ol>
+</section>
+<section class="read" aria-labelledby="faq-h">
+<h2 id="faq-h" style="margin-bottom:18px">Вопросы</h2>
+<details><summary>В каком формате гайд?</summary><p>PDF формата A5, удобно читать с телефона. Чек-листы и рабочие листы можно распечатать или заполнять на планшете</p></details>
+<details><summary>Подойдёт, если я не в отношениях?</summary><p>Да. Тип привязанности проявляется и в дружбе, и в деньгах, и в отношениях с собой, и об этом отдельные главы. А ещё гайд помогает понять, почему тебя привлекают одни и те же люди</p></details>
+<details><summary>А если захочется разобраться глубже?</summary><p>Форматы индивидуальной работы и условия расписаны в <a href="https://taplink.cc/shtemenko_t">Taplink</a>. Можно написать и сразу в <a href="https://t.me/Shtemenko_t">Telegram</a></p></details>
+</section>
+<section>
+<div class="final">
+<div>
+<h2>Типы привязанности</h2>
+<p class="muted" style="margin-top:8px">PDF-гайд с чек-листами, бонусом про деньги и пятью рабочими листами</p>
+</div>
+<div class="buy" style="margin:0">
+<span class="price">790 ₽</span>
+<a class="btn" href="#">Купить гайд →</a>
+</div>
+</div>
+</section>
+<footer>
+<span>© Таисия Штеменко</span>
+<span><a href="https://taplink.cc/shtemenko_t">Taplink</a> · <a href="https://t.me/Shtemenko_t">Telegram</a></span>
+</footer>
+</div>
+<script>
+(function(){
+var boxes=[].slice.call(document.querySelectorAll('.checks input'));
+var cnt=document.getElementById('cnt'), m=document.getElementById('ma'), v=document.getElementById('verdict');
+function upd(){
+var a=0,b=0; boxes.forEach(function(x){if(x.checked){x.dataset.t==='a'?a++:b++}});
+var n=a+b; cnt.textContent=n;
+m.style.width=(n?Math.round(a/n*100):50)+'%';
+if(n===0) v.textContent='Отмечай пункты, и здесь появится результат';
+else if(a>b) v.textContent='Больше тревожных пунктов. Похоже, в отношениях ты скорее догоняешь: суетишься, подстраиваешься и ищешь доказательства, что тебя не бросят. В гайде — что добавить себе, чтобы уравновеситься';
+else if(b>a) v.textContent='Больше избегающих пунктов. Похоже, в отношениях ты скорее отдаляешься: держишь дистанцию и пути отхода. В гайде — как сближаться плавно и не пугаться зависимости';
+else v.textContent='Поровну. Если реакции логичны и предсказуемы, это обычная смесь. Если непредсказуемы даже для тебя самой, почитай главу про тревожно-избегающий тип';
+}
+boxes.forEach(function(x){x.addEventListener('change',upd)});
+upd();
+})();
+</script>
+
+</body>
+</html>
