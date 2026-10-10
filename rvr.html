@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Родитель, Взрослый, Ребёнок — гайд</title>
+<meta name="description" content="Гайд-практикум психолога Таисии Штеменко по транзактному анализу: как замечать, из какого состояния ты говоришь, и выходить из привычных сценариев">
+<meta property="og:title" content="Родитель, Взрослый, Ребёнок — гайд">
+<meta property="og:description" content="Гайд-практикум психолога Таисии Штеменко по транзактному анализу: как замечать, из какого состояния ты говоришь, и выходить из привычных сценариев">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,400;1,500&family=Manrope:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="style.css?v=2">
+<style>
+.theme-ta{--accent:#4D6788;--accent-soft:#E2E8F0;--surface:#EDF1F5;--cover:#E3E9F0;--cover-2:#C8D4E2;--cover-ring:#9DB0C7}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .theme-ta{--accent:#8FA9CC;--accent-soft:#222A35;--surface:#20262E;--cover:#20262E;--cover-2:#33405A;--cover-ring:#5B7393}}:root[data-theme="dark"] .theme-ta{--accent:#8FA9CC;--accent-soft:#222A35;--surface:#20262E;--cover:#20262E;--cover-2:#33405A;--cover-ring:#5B7393}
+.quiz{display:flex;flex-direction:column;margin-top:22px}
+.qrow{padding:16px 0;border-bottom:1px dashed var(--line)}
+.qrow .ph{font-family:var(--display);font-style:italic;font-size:19px;line-height:1.4}
+.qbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.qbtns button{border:1.5px solid var(--line);background:var(--bg);color:var(--fg);font:500 14px/1 var(--body);padding:9px 14px;border-radius:999px;cursor:pointer}
+.qbtns button[aria-pressed="true"].ok{background:var(--sage);border-color:var(--sage);color:#fff}
+.qbtns button[aria-pressed="true"].no{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.qrow .why{font-size:15px;color:var(--muted);margin-top:8px;min-height:0}
+</style>
+</head>
+<body class="theme-ta">
+<div class="wrap">
+<nav class="nav"><a class="me" href="./">Таисия Штеменко <span>· психолог</span></a><a class="link" href="guides">Все гайды</a></nav>
+
+<header class="hero">
+<div>
+<div class="eyebrow">Гайд-практикум · PDF</div>
+<h1>Родитель, Взрослый, Ребёнок</h1>
+<p class="sub">Как замечать, из какого состояния ты говоришь, и выходить из привычных сценариев</p>
+<div class="buy"><a class="btn" href="https://web.tribute.tg/p/GBP">Купить гайд →</a><span class="price">490 ₽</span></div>
+<ul class="facts"><li>10 страниц</li><li>7 глав</li><li>9 заданий</li><li>4 ежедневные практики</li></ul>
+</div>
+<div class="cover" aria-hidden="true"><div class="c1"></div><div class="c2"></div><div class="c3"></div><div class="k">Гайд-практикум</div><div class="t">Родитель,<br>Взрослый,<br>Ребёнок</div><div class="s">Как замечать, из какого состояния ты говоришь, и выходить из привычных сценариев</div><div class="a"><b>Таисия Штеменко</b>психолог</div></div>
+</header>
+
+<section class="test" aria-labelledby="test-h">
+<div class="test-grid">
+<div>
+<div class="eyebrow">Попробуй сама</div>
+<h2 id="test-h" style="margin-top:10px">Из какого это состояния?</h2>
+<p class="muted" style="margin-top:10px">Выбери ответ для каждой фразы. Последняя с подвохом</p>
+<div class="quiz" id="quiz">
+<div class="qrow" data-a="Р" data-why="Оценка и упрёк «сверху»: так звучит Контролирующий Родитель"><div class="ph">«Сколько можно повторять одно и то же!»</div><div class="qbtns"></div><div class="why"></div></div>
+<div class="qrow" data-a="В" data-why="Вопрос о фактах здесь и сейчас, без оценки: так звучит Взрослый"><div class="ph">«Во сколько тебе удобно созвониться?»</div><div class="qbtns"></div><div class="why"></div></div>
+<div class="qrow" data-a="Д" data-why="Протест без объяснений: так звучит бунтующий Ребёнок"><div class="ph">«Не хочу, и всё!»</div><div class="qbtns"></div><div class="why"></div></div>
+<div class="qrow" data-a="Р" data-why="Звучит как забота, но решение принято за другого, никто не спросил, нужна ли помощь. Это Заботливый Родитель со знаком минус, его сложнее всего заметить"><div class="ph">«Не надо, я сама всё сделаю, ты и так устал»</div><div class="qbtns"></div><div class="why"></div></div>
+</div>
+</div>
+<div class="result" aria-live="polite">
+<div class="n"><span id="score">0</span><small> из 4</small></div>
+<p id="verdict">Отвечай на фразы, и здесь появится результат</p>
+</div>
+</div>
+</section>
+
+<section class="read" aria-labelledby="toc-h">
+<div class="eyebrow">Содержание</div>
+<h2 id="toc-h" style="margin-top:10px">Что внутри</h2>
+<ol class="toc">
+<li><span class="n">1</span><span class="h">Три состояния</span><span class="d">Родитель, Взрослый и Ребёнок — не роли и не возраст, а способы думать, чувствовать и вести себя. И почему среди них нет «плохих»</span></li>
+<li><span class="n">2</span><span class="h">У каждого состояния две стороны</span><span class="d">Когда Контролирующий и Заботливый Родитель, Адаптивный и Свободный Ребёнок помогают, а когда мешают жить</span></li>
+<li><span class="n">3</span><span class="h">Как узнать своё состояние</span><span class="d">Слова, тон, тело, чувства и два вопроса, которые помогают поймать себя в моменте</span></li>
+<li><span class="n">4</span><span class="h">Транзакции</span><span class="d">Почему разговор съезжает в ссору и как вернуть его во Взрослый канал</span></li>
+<li><span class="n">5</span><span class="h">Треугольник Карпмана</span><span class="d">Преследователь, Жертва, Спасатель — и выход из каждой роли через Треугольник Победителя</span></li>
+<li><span class="n">6</span><span class="h">Внутренний диалог</span><span class="d">Как отвечать внутреннему критику голосом Взрослой и Заботливой</span></li>
+<li><span class="n">7</span><span class="h">Практики на каждый день</span><span class="d">Четыре коротких практики, которые превращают понимание в навык</span></li>
+</ol>
+<div class="extras"><span class="chip">Таблица состояний</span><span class="chip">Дневник состояний</span><span class="chip">Разбор ссоры по репликам</span><span class="chip">Три колонки для критика</span><span class="chip">Фразы для выхода из треугольника</span></div>
+</section>
+
+<section class="read" aria-labelledby="frag-h">
+<div class="fragment">
+<span class="tag">Фрагмент главы 5</span>
+<h2 id="frag-h">Выход из треугольника</h2>
+<p style="margin-top:14px">Главная ловушка треугольника в том, что роли меняются: Спасатель, которого не оценили, становится Жертвой или Преследователем. Для каждой роли есть здоровая альтернатива</p>
+<div class="formula">
+<div class="f1"><b>Настойчивая</b><span>вместо Преследователя: говорит о своих потребностях без нападения</span></div>
+<div class="f2"><b>Уязвимая</b><span>вместо Жертвы: называет чувства и прямо просит о помощи</span></div>
+<div class="f3"><b>Заботливая</b><span>вместо Спасателя: помогает, когда просят, и не делает за другого</span></div>
+</div>
+<div class="arrow">Например</div>
+<div class="formula" style="margin-top:10px">
+<div class="f1 ex">«Мне важно, чтобы мы договаривались заранее»</div>
+<div class="f2 ex">«Мне обидно это слышать. Давай разберёмся»</div>
+<div class="f3 ex">«Хочешь, подумаем вместе? Или тебе просто нужно выговориться?»</div>
+</div>
+<p class="quote">Цель не в том, чтобы всегда быть во Взрослом. Цель — выбирать</p>
+<p class="muted" style="margin-top:18px;font-size:15px">В гайде дальше: таблица ролей с фразами «до» и «после» и вопрос, который стоит задать себе перед тем, как помочь</p>
+</div>
+</section>
+
+<section aria-labelledby="who-h">
+<div class="two">
+<div>
+<div class="eyebrow">Для кого</div>
+<h2 id="who-h" style="margin-top:10px">Гайд подойдёт, если</h2>
+<ul class="dots">
+<li><span>разговоры с близкими раз за разом заканчиваются одинаково, и ты не понимаешь, где всё пошло не так</span></li>
+<li><span>рядом с мамой или начальством ты снова чувствуешь себя маленькой</span></li>
+<li><span>внутренний критик говорит громче, чем хотелось бы</span></li>
+<li><span>ты часто спасаешь других, а потом остаёшься виноватой</span></li>
+</ul>
+</div>
+<div class="note" style="align-self:start"><b>Важно</b>Гайд не заменяет терапию. Если узнаёшь себя в пунктах, отмеченных в гайде звёздочкой, за ними может стоять травма, с которой лучше работать индивидуально</div>
+</div>
+</section>
+
+<section aria-labelledby="how-h">
+<div class="eyebrow">Как получить</div>
+<h2 id="how-h" style="margin-top:10px">Гайд придёт в Telegram сразу после оплаты</h2>
+<ol class="steps">
+<li><b>Нажми «Купить гайд»</b><span>Откроется страница оплаты Tribute</span></li>
+<li><b>Оплати</b><span>Картой или через СБП</span></li>
+<li><b>Получи PDF</b><span>Гайд сразу придёт в Telegram, в бот @tribute</span></li>
+</ol>
+</section>
+
+<section class="read" aria-labelledby="faq-h">
+<h2 id="faq-h" style="margin-bottom:18px">Вопросы</h2>
+<details><summary>Нужно ли знать транзактный анализ?</summary><p>Нет. Все понятия объясняются с нуля и на примерах из жизни: разговоры с мамой, партнёром, коллегами</p></details>
+<details><summary>В каком формате гайд?</summary><p>PDF формата A4. Удобно читать с телефона и планшета, задания можно распечатать</p></details>
+<details><summary>Сколько времени нужно на гайд?</summary><p>Прочитать можно за вечер. Но навык замечать свои состояния растёт от практики, поэтому лучше идти по одной главе и сразу делать задания</p></details>
+<details><summary>А если захочется разобраться глубже?</summary><p>Форматы индивидуальной работы и условия расписаны <a href="./">на моём сайте</a>. Можно написать и сразу в <a href="https://t.me/Shtemenko_t">Telegram</a></p></details>
+</section>
+
+<section>
+<div class="final">
+<div><h2>Родитель, Взрослый, Ребёнок</h2><p class="muted" style="margin-top:8px">PDF-гайд по транзактному анализу с заданиями и ежедневными практиками</p></div>
+<div class="buy" style="margin:0"><span class="price">490 ₽</span><a class="btn" href="https://web.tribute.tg/p/GBP">Купить гайд →</a></div>
+</div>
+</section>
+
+<footer><span>© Таисия Штеменко</span><span><a href="./">Работа со мной</a> · <a href="https://t.me/Shtemenko_t">Telegram</a></span></footer>
+</div>
+<script>
+(function(){
+var names={'Р':'Родитель','В':'Взрослый','Д':'Ребёнок'};
+var rows=[].slice.call(document.querySelectorAll('.qrow'));
+var score=document.getElementById('score'),verdict=document.getElementById('verdict');
+function upd(){
+var done=rows.filter(function(r){return r.dataset.done}).length;
+var ok=rows.filter(function(r){return r.dataset.done==='ok'}).length;
+score.textContent=ok;
+if(done===0)verdict.textContent='Отвечай на фразы, и здесь появится результат';
+else if(done<rows.length)verdict.textContent='Осталось '+(rows.length-done)+' из '+rows.length;
+else if(ok===rows.length)verdict.textContent='Отлично, ты хорошо слышишь состояния в чужих словах. В гайде — как замечать их у себя, особенно когда разговор накаляется';
+else verdict.textContent='Последняя фраза чаще всего сбивает с толку: забота бывает разной. В гайде разбираем, как отличить здоровую заботу от спасательства и как узнавать свои состояния в моменте';
+}
+rows.forEach(function(r){
+var box=r.querySelector('.qbtns'),why=r.querySelector('.why');
+['Р','В','Д'].forEach(function(k){
+var b=document.createElement('button');b.type='button';b.textContent=names[k];b.setAttribute('aria-pressed','false');
+b.addEventListener('click',function(){
+[].forEach.call(box.children,function(x){x.setAttribute('aria-pressed','false');x.classList.remove('ok','no')});
+var right=k===r.dataset.a;
+b.setAttribute('aria-pressed','true');b.classList.add(right?'ok':'no');
+r.dataset.done=right?'ok':'no';
+why.textContent=(right?'Да. ':'Не совсем. ')+r.dataset.why;
+upd();
+});
+box.appendChild(b);
+});
+});
+upd();
+})();
+</script>
+</body>
+</html>
