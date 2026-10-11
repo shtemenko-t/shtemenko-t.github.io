@@ -65,11 +65,20 @@
 .freecard span{color:var(--muted);font-size:15px}
 .freecard .go{font-weight:700;color:#6A55C9;white-space:nowrap}
 @media (max-width:640px){.freecard{grid-template-columns:auto minmax(0,1fr)}.freecard .go{grid-column:1/3}}
+.freecard+.freecard{margin-top:14px}
+.freecard.theme-ta:hover{border-color:var(--accent)}
+.freecard.theme-ta .ic{background:var(--accent)}
+.freecard.theme-ta .go{color:var(--accent)}
 </style>
 <div class="eyebrow" id="free-h" style="margin-bottom:14px">Бесплатно</div>
 <a class="freecard" href="life-simulator">
 <div class="ic" aria-hidden="true">🎮</div>
 <div><b>Симулятор жизни</b><span>Приложение, в котором дела превращаются в квесты, а награды — в реальные покупки</span></div>
+<div class="go">Открыть →</div>
+</a>
+<a class="freecard theme-ta" href="trener/">
+<div class="ic" aria-hidden="true">💬</div>
+<div><b>Тренажёр «Родитель, Взрослый, Ребёнок»</b><span>Приложение, в котором учишься узнавать эго-состояния в живых фразах и отвечать по-новому</span></div>
 <div class="go">Открыть →</div>
 </a>
 </section>
