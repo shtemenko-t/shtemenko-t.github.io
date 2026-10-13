@@ -192,6 +192,32 @@ footer{padding-block:28px 40px;border-top:1px solid var(--border);color:var(--hi
   .doc .year,.label{font-size:13px}
   .meta{font-size:16px}
 }
+
+/* mobile usability pass */
+.top-actions{display:flex;align-items:center;gap:16px}
+.nav-prices{display:none;font-size:15px;color:var(--ink);text-decoration:none;font-weight:500}
+@media (max-width:760px){.nav-prices{display:inline}}
+@media (max-width:380px){.brand{font-size:15px}.top-actions{gap:12px}}
+.hero-id{display:grid;gap:22px}
+.hero-name{display:grid;gap:22px}
+.avatar{display:none}
+.from-price{color:var(--ink);font-weight:600}
+.swipe-hint{display:none}
+@media (max-width:820px){
+  section.hero{padding-block:28px 56px}
+  .hero-grid > .photo{display:none}
+  .hero-id{grid-template-columns:76px minmax(0,1fr);align-items:center;gap:16px}
+  .hero-name{gap:6px}
+  .hero-name h1{font-size:30px;line-height:1.15}
+  .avatar{display:block;width:76px;height:76px;border-radius:50%;object-fit:cover;object-position:center 30%}
+  .hero-text{gap:18px}
+}
+@media (max-width:860px){
+  .swipe-hint{display:inline}
+  .docs{display:flex;grid-template-columns:none;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;margin-inline:-20px;padding:0 20px 12px;scroll-padding-inline:20px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  .doc{flex:0 0 72%;max-width:300px;scroll-snap-align:start}
+  .doc img{aspect-ratio:4/3}
+}
 </style>
 </head>
 <body>
@@ -205,7 +231,10 @@ footer{padding-block:28px 40px;border-top:1px solid var(--border);color:var(--hi
       <a href="#guides">Гайды</a>
       <a href="#contacts">Контакты</a>
     </nav>
-    <a class="btn small" href="https://t.me/Shtemenko_t" target="_blank" rel="noopener">Записаться</a>
+    <div class="top-actions">
+      <a class="nav-prices" href="#prices">Цены</a>
+      <a class="btn small" href="https://t.me/Shtemenko_t" target="_blank" rel="noopener">Записаться</a>
+    </div>
   </div>
 </header>
 
@@ -213,8 +242,13 @@ footer{padding-block:28px 40px;border-top:1px solid var(--border);color:var(--hi
   <section class="hero">
     <div class="wrap hero-grid">
       <div class="hero-text">
-        <p class="label">Френдли психолог · онлайн</p>
-        <h1>Таисия Штеменко</h1>
+        <div class="hero-id">
+          <img class="avatar" src="img/taisiya.jpg" alt="" width="640" height="640">
+          <div class="hero-name">
+            <p class="label">Френдли психолог · онлайн</p>
+            <h1>Таисия Штеменко</h1>
+          </div>
+        </div>
         <p class="tagline">Десятый год помогаю с тревожностью, личными границами, самооценкой и поиском своих желаний и ориентиров</p>
         <div class="pills" aria-label="Методы">
           <span class="pill">КПТ</span>
@@ -222,7 +256,7 @@ footer{padding-block:28px 40px;border-top:1px solid var(--border);color:var(--hi
           <span class="pill">Транзактный анализ</span>
           <span class="pill">РО ДБТ</span>
         </div>
-        <p class="meta">Видеозвонок в Zoom · 50 минут · вт–сб, 11:00–19:00 по Москве</p>
+        <p class="meta"><b class="from-price">от 7 000 ₽</b> · Видеозвонок в Zoom · 50 минут · вт–сб, 11:00–19:00 по Москве</p>
         <div class="actions">
           <a class="btn" href="https://t.me/Shtemenko_t" target="_blank" rel="noopener">Записаться в Telegram</a>
           <a class="btn soft" href="https://t.me/shtemen_kot" target="_blank" rel="noopener">Сначала почитать канал</a>
@@ -378,7 +412,7 @@ footer{padding-block:28px 40px;border-top:1px solid var(--border);color:var(--hi
       <div class="head">
         <p class="label">Образование</p>
         <h2>Дипломы и повышение квалификации</h2>
-        <p class="muted">Нажмите на документ, чтобы открыть его крупно</p>
+        <p class="muted">Нажмите на документ, чтобы открыть его крупно<span class="swipe-hint">. Листайте вбок, чтобы увидеть все</span></p>
       </div>
       <div class="docs">
         <button class="doc" type="button" data-full="img/d2019-bakalavr.jpg" data-title="Диплом бакалавра, 2019"><img src="img/d2019-bakalavr.jpg" alt="Диплом бакалавра" loading="lazy"><span class="year">2019 · Сочинский государственный университет</span><h3>Бакалавр психолого-педагогического образования</h3></button>
