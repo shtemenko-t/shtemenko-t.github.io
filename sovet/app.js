@@ -3,7 +3,7 @@
 
   // ---------- Хранилище ----------
   const KEY = 'sovet3-v1';
-  const blank = () => ({ start: null, done: {}, ev: {}, train: {}, read: {}, preview: null, introSeen: false });
+  const blank = () => ({ start: null, done: {}, ev: {}, train: {}, read: {}, preview: null, introSeen: false, names: {}, crest: null, host: false, unlock: false });
   let st = blank();
   try { st = Object.assign(blank(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} };
@@ -26,6 +26,8 @@
     const p = new URLSearchParams(location.search).get('start');
     if (p && /^\d{4}-\d{2}-\d{2}$/.test(p) && !st.start && startOk(p)) { st.start = p; save(); }
   } catch (e) {}
+  // режим ведущей: ?host=1 в ссылке (или 5 нажатий на заголовок «Настройки»)
+  try { if (new URLSearchParams(location.search).get('host') === '1' && !st.host) { st.host = true; save(); } } catch (e) {}
   const badStartMsg = s => 'Проверь дату: ' + human(s) + ' ' + s.slice(0, 4) + ' года. Похоже на опечатку в годе — сезон должен стартовать в ближайшие месяцы';
 
   // Положение в сезоне
@@ -95,6 +97,38 @@
   }
   const heroState = (id, phase) => HERO_STATE[id][phase];
   const heroImg = (id, s) => `img/${id}-${s}.webp`;
+  // имя героя: своё, если участница его дала, иначе роль
+  const heroLabel = (H, s) => (st.names && st.names[H.id]) || H.names[s - 1];
+  const plateCls = t => t.length > 16 ? ' xs' : t.length > 12 ? ' sm' : '';
+
+  // ---------- Герб ----------
+  const CREST_COLORS = [
+    { n: 'Сапфир', f: '#2f56c9', d: '#1a3184' },
+    { n: 'Аметист', f: '#6a46c4', d: '#3e2585' },
+    { n: 'Гранат', f: '#a3304a', d: '#651a2c' },
+    { n: 'Изумруд', f: '#1f8f66', d: '#0f5a3f' },
+    { n: 'Янтарь', f: '#c98a1c', d: '#7f530a' },
+    { n: 'Бирюза', f: '#1e8a9a', d: '#0f5560' }
+  ];
+  const G = 'fill="#f0d78c"';
+  const CREST_SYMBOLS = [
+    { n: 'Звезда', s: `<path ${G} d="M12 2l2.6 6.9L22 9.3l-5.8 4.6 2 7.1L12 17l-6.2 4 2-7.1L2 9.3l7.4-.4z"/>` },
+    { n: 'Луна', s: `<path ${G} d="M15 2.5a9.5 9.5 0 1 0 6.5 16.4A8 8 0 0 1 15 2.5z"/>` },
+    { n: 'Солнце', s: `<circle cx="12" cy="12" r="4.6" ${G}/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4M4.6 4.6l2.8 2.8M16.6 16.6l2.8 2.8M4.6 19.4l2.8-2.8M16.6 7.4l2.8-2.8" stroke="#f0d78c" stroke-width="2" stroke-linecap="round"/>` },
+    { n: 'Ключ', s: `<circle cx="8" cy="8" r="5" fill="none" stroke="#f0d78c" stroke-width="2.6"/><path d="M11.5 11.5L21 21M17 17l2.6-2.6M19.5 19.5l2-2" stroke="#f0d78c" stroke-width="2.6" stroke-linecap="round"/>` },
+    { n: 'Роза', s: `<g ${G}><circle cx="12" cy="5.5" r="4"/><circle cx="18.2" cy="10" r="4"/><circle cx="15.8" cy="17.3" r="4"/><circle cx="8.2" cy="17.3" r="4"/><circle cx="5.8" cy="10" r="4"/></g><circle cx="12" cy="12" r="3" fill="#a8700f"/>` },
+    { n: 'Пламя', s: `<path ${G} d="M12 1.5c1.2 4.5 7 6.5 7 13a7 7 0 0 1-14 0c0-3.4 2.2-5.6 3.4-7.8.2 2.3 1.3 3.6 2.4 3.6 0-3.3-.2-5.6 1.2-8.8z"/>` }
+  ];
+  function crestSvg(c, size) {
+    const w = size || 40;
+    if (!c) return `<svg viewBox="0 0 24 26" width="${w}" height="${w * 26 / 24}" aria-hidden="true"><path d="M12 1.5l9.5 3.4v6.6c0 6.2-4 10.6-9.5 13-5.5-2.4-9.5-6.8-9.5-13V4.9z" fill="none" stroke="#d8b45a" stroke-width="1.2" stroke-dasharray="2.2 1.8"/><path d="M12 9v7M8.5 12.5h7" stroke="#f0d78c" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+    const col = CREST_COLORS[c.col] || CREST_COLORS[0], sym = CREST_SYMBOLS[c.sym] || CREST_SYMBOLS[0];
+    return `<svg viewBox="0 0 24 26" width="${w}" height="${w * 26 / 24}" aria-hidden="true">
+      <defs><linearGradient id="cg${c.col}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${col.f}"/><stop offset="1" stop-color="${col.d}"/></linearGradient></defs>
+      <path d="M12 1.5l9.5 3.4v6.6c0 6.2-4 10.6-9.5 13-5.5-2.4-9.5-6.8-9.5-13V4.9z" fill="url(#cg${c.col})" stroke="#d8b45a" stroke-width="1.2"/>
+      <path d="M12 3.3l7.8 2.8v5.4c0 5.1-3.3 8.8-7.8 10.8" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".6"/>
+      <g transform="translate(6.6 6.4) scale(.45)">${sym.s}</g></svg>`;
+  }
 
   // ---------- Навигация ----------
   let tab = 'map';
@@ -116,7 +150,15 @@
     ({ map: renderMap, quest: renderQuest, squad: renderSquad, chron: renderChron })[tab](P);
   }
 
-  const previewBar = () => st.preview ? `<div class="preview"><span>Предпросмотр: ${esc(st.preview.label)}. Отметки сохраняются как настоящие</span><button data-act="preview-off">Выйти</button></div>` : '';
+  const unlocked = () => !!(st.host && st.unlock && st.start);
+  const previewBar = () => {
+    const parts = [];
+    if (st.preview) parts.push('предпросмотр: ' + st.preview.label);
+    if (unlocked()) parts.push('все задания открыты');
+    if (!parts.length) return '';
+    const t = parts.join(', ');
+    return `<div class="preview"><span>Режим ведущей: ${esc(t)}. Отметки сохраняются как настоящие</span><button data-act="preview-off">Выйти</button></div>`;
+  };
 
   function gemRow() {
     const g = gems();
@@ -156,13 +198,15 @@
       </div>`;
     } else if (P.phase === 0) {
       cta = `<div class="card"><div class="eyebrow">Пролог</div><p>Власть в замке захватил Надзиратель. Взрослый спит в библиотеке, Ребёнок заперт в башне, а Заботливый Родитель давно забыт и стал призраком. За четыре недели мы вернём Совет к управлению</p>
-      ${st.start ? `<p class="muted small" style="margin-top:10px">Первая глава откроется ${esc(human(st.start))}. Пока можно познакомиться с отрядом</p>` : ''}
-      <button class="btn wide ghost" data-act="tab" data-v="squad">Познакомиться с отрядом</button></div>`;
+      ${st.start ? `<p class="muted small" style="margin-top:10px">Первая глава откроется ${esc(human(st.start))}. Пока можно познакомиться с отрядом, дать героям имена и выбрать герб замка</p>` : ''}
+      <button class="btn wide ghost" data-act="tab" data-v="squad">Познакомиться с отрядом</button>
+      ${st.crest ? '' : '<button class="btn wide ghost" data-act="crest">Выбрать герб замка</button>'}</div>`;
     } else {
       cta = `<div class="card glow"><div class="eyebrow">Финал</div><p>Замок встречает рассвет. Надзиратель стал Хранителем, Взрослый ведёт Совет, Ребёнок свободен, а сад Заботливого Родителя цветёт</p><button class="btn wide ghost" data-act="tab" data-v="chron">Открыть хронику сезона</button></div>`;
     }
     $('#s-map').innerHTML = previewBar() + `
-      <div class="top"><div><div class="eyebrow">${esc(eyebrow(P))}</div><h1>${esc(title)}</h1></div>
+      <div class="top"><button class="crest-btn${st.crest ? '' : ' empty'}" data-act="crest" aria-label="${st.crest ? 'Герб замка' : 'Выбрать герб замка'}">${crestSvg(st.crest, 40)}</button>
+      <div style="flex:1;min-width:0"><div class="eyebrow">${esc(eyebrow(P))}</div><h1>${esc(title)}</h1>${st.crest && st.crest.name ? `<div class="castle-name">${esc(st.crest.name)}</div>` : ''}</div>
       <button class="icon-btn" data-act="settings" aria-label="Настройки">${ICON.gear}</button></div>
       ${gemRow()}
       <div class="frame"><div class="in"><div class="map">
@@ -179,20 +223,21 @@
   // ---------- Квест ----------
   function renderQuest(P) {
     const el = $('#s-quest');
-    if (!P.week && P.phase === 0) {
+    const U = unlocked();
+    if (!P.week && P.phase === 0 && !U) {
       el.innerHTML = previewBar() + `<div class="top"><div><div class="eyebrow">${esc(eyebrow(P))}</div><h1>Квесты</h1></div></div>
         <div class="card"><p>Каждый день недели открывается новый квест на 5–10 минут. В первый день недели встречаемся в Zoom и открываем главу</p>
         ${st.start ? `<p class="muted small" style="margin-top:10px">До старта ${diff(today(), st.start)} ${plural(diff(today(), st.start), 'день', 'дня', 'дней')}</p>` : `<button class="btn wide" data-act="settings">Указать дату старта</button>`}</div>`;
       return;
     }
     // какую неделю показываем
-    const curW = P.week || 4;
-    if (!selDay || selDay.w > curW) selDay = P.week ? { w: P.week, d: P.day } : { w: 4, d: 7 };
+    const curW = U ? 4 : (P.week || 4);
+    if (!selDay || selDay.w > curW) selDay = P.week ? { w: P.week, d: P.day } : U && P.phase === 0 ? { w: 1, d: 1 } : { w: 4, d: 7 };
     const W = WEEKS[selDay.w - 1];
-    const maxDayIdx = P.week ? P.idx : 27;
+    const maxDayIdx = U ? 27 : P.week ? P.idx : 27;
 
     const weekTabs = WEEKS.filter(x => x.n <= curW).map(x =>
-      `<button class="check ${x.n === selDay.w ? 'on' : ''}" data-act="week" data-v="${x.n}">Неделя ${x.n}</button>`).join(' ');
+      `<button class="check wk ${x.n === selDay.w ? 'on' : ''}" data-act="week" data-v="${x.n}">Неделя ${x.n}</button>`).join(' ');
 
     const days = W.days.map((D, i) => {
       const d = i + 1, idx = (W.n - 1) * 7 + i, lock = idx > maxDayIdx;
@@ -206,13 +251,14 @@
     const rec = st.done[id];
     const date = dateOf(W.n, selDay.d);
     const isToday = date === today();
-    const late = !isToday && !rec;
+    const late = date < today() && !rec;
 
     const taskCard = `<div class="card glow">
       <div>${D.meet ? '<span class="chip zoom">Встреча в Zoom</span>' : ''}${D.sum ? '<span class="chip">Итог недели · бонус</span>' : ''}<span class="chip">${gemSvg(D.g, 'width="14" height="14"')} ${esc(GEMS[D.g].name)}</span></div>
       <div class="eyebrow">${isToday ? 'Сегодня' : esc(human(date))} · день ${selDay.d}</div>
       ${D.meet ? '<p class="muted small" style="margin-bottom:6px">Домашнее задание после встречи</p>' : ''}
       <div class="task">${esc(D.t)}</div>
+      ${W.n === 1 && selDay.d === 1 ? `<p class="muted small" style="margin:-6px 0 12px">Можно дать героям свои имена: <button class="link" data-act="tab" data-v="squad">открыть отряд</button></p>` : ''}
       ${rec && !editing[id] ? `
         ${rec.text ? `<div class="answer">${esc(rec.text)}</div>` : ''}
         <div class="done-line">${ICON.check}Выполнен${rec.at !== date ? ' позже, без серии' : ''}</div>
@@ -227,7 +273,7 @@
     // карта события: день 4 и позже
     let ev = '';
     const evDate = dateOf(W.n, 4);
-    if (evDate <= today()) {
+    if (evDate <= today() || U) {
       const e = st.ev[W.n];
       if (!e) {
         ev = `<div class="evcard"><div class="flip"><button class="face front" data-act="draw" data-v="${W.n}">${ICON.star}<b style="font:600 17px/1.2 var(--display)">Карта события</b><span class="muted small">Нажми, чтобы вытянуть</span></button></div></div>`;
@@ -259,7 +305,7 @@
 
     el.innerHTML = previewBar() + `
       <div class="top"><div><div class="eyebrow">Неделя ${W.n} · ${esc(W.reward)}</div><h1>${esc(W.title)}</h1></div></div>
-      ${curW > 1 ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${weekTabs}</div>` : ''}
+      ${curW > 1 ? `<div style="display:flex;gap:8px;flex-wrap:nowrap;margin-bottom:12px">${weekTabs}</div>` : ''}
       <details class="card" style="padding:14px 18px"><summary class="link" style="list-style:none;cursor:pointer">О чём эта глава</summary><p style="margin-top:10px">${esc(W.intro)}</p></details>
       <div class="days">${days}</div><div class="day-lbl">${lbl}</div>
       ${taskCard}${ev}${bonus}`;
@@ -271,12 +317,12 @@
   function renderSquad(P) {
     $('#s-squad').innerHTML = previewBar() + `
       <div class="top"><div><div class="eyebrow">${esc(eyebrow(P))}</div><h1>Отряд</h1></div></div>
-      <p class="muted" style="margin-bottom:16px">Облик персонажей меняется по главам сезона. Нажми на карту, чтобы рассмотреть</p>
+      <p class="muted" style="margin-bottom:16px">Облик персонажей меняется по главам сезона. Нажми на карту, чтобы рассмотреть героя и дать ему своё имя</p>
       <div class="squad">${HEROES.map(H => {
-        const s = heroState(H.id, P.phase);
+        const s = heroState(H.id, P.phase), L = heroLabel(H, s), own = !!st.names[H.id];
         return `<button class="hero" data-act="hero" data-v="${H.id}">
-          <div class="portrait"><img src="${heroImg(H.id, s)}" alt="${esc(H.names[s - 1])}" loading="lazy"><div class="plate">${esc(H.names[s - 1])}</div></div>
-          <div class="h-line">${esc(H.lines[s - 1])}</div></button>`;
+          <div class="portrait"><img src="${heroImg(H.id, s)}" alt="${esc(H.names[s - 1])}" loading="lazy"><div class="plate${plateCls(L)}">${esc(L)}</div></div>
+          ${own ? `<div class="h-role">${esc(H.names[s - 1])}</div>` : ''}<div class="h-line">${esc(H.lines[s - 1])}</div></button>`;
       }).join('')}</div>`;
   }
   function nextChange(id, phase) {
@@ -287,16 +333,22 @@
   function openHero(id) {
     const P = pos(), H = HEROES.find(h => h.id === id), s = heroState(id, P.phase), nx = nextChange(id, P.phase);
     const g = H.gem ? gems()[H.gem] : null;
-    modal(`<div class="big-portrait"><div class="frame"><div class="in"><div class="portrait" style="border-radius:0"><img src="${heroImg(id, s)}" alt="${esc(H.names[s - 1])}"><div class="plate">${esc(H.names[s - 1])}</div></div></div></div></div>
-      <div class="eyebrow">${esc(H.zone)}</div><h2 style="margin:4px 0 8px">${esc(H.names[s - 1])}</h2>
+    const L = heroLabel(H, s), own = st.names[id] || '';
+    modal(`<div class="big-portrait"><div class="frame"><div class="in"><div class="portrait" style="border-radius:0"><img src="${heroImg(id, s)}" alt="${esc(H.names[s - 1])}"><div class="plate${plateCls(L)}">${esc(L)}</div></div></div></div></div>
+      <div class="eyebrow">${esc(H.zone)}${own ? ' · ' + esc(H.names[s - 1]) : ''}</div><h2 style="margin:4px 0 8px">${esc(L)}</h2>
       <p>${esc(H.lines[s - 1])}</p>
+      <div class="card" style="margin:16px 0 0;padding:14px 16px">
+        <div class="field" style="margin:0"><label for="h-name">Своё имя для героя</label><input id="h-name" maxlength="24" autocomplete="off" value="${esc(own)}" placeholder="${esc(H.nameHint)}"></div>
+        <p class="muted small" style="margin-top:8px">${esc(H.nameWhy)}. Имя появится на табличке портрета</p>
+        <div style="display:flex;gap:14px;align-items:center;margin-top:12px;flex-wrap:wrap"><button class="btn" data-act="hero-name" data-v="${id}">Сохранить имя</button>${own ? `<button class="link" data-act="hero-name-clear" data-v="${id}">Убрать имя</button>` : ''}</div>
+      </div>
       ${g !== null ? `<p class="gem" style="margin-top:12px">${gemSvg(H.gem)} ${esc(GEMS[H.gem].scale)}: ${g}</p>` : ''}
       ${nx ? `<p class="muted small" style="margin-top:12px">Облик изменится ${esc(nx)}</p>` : `<p class="muted small" style="margin-top:12px">Это финальный облик сезона</p>`}`);
   }
 
   // ---------- Хроника ----------
   function renderChron(P) {
-    const curW = P.week || (P.phase === 5 ? 4 : 0);
+    const curW = unlocked() ? 4 : P.week || (P.phase === 5 ? 4 : 0);
     let html = '';
     WEEKS.filter(W => W.n <= curW).forEach(W => {
       const items = W.days.map((D, i) => ({ D, r: st.done[tid(W.n, i + 1)] })).filter(x => x.r);
@@ -329,7 +381,7 @@
     for (let w = 1; w <= 4; w++) for (let d = 1; d <= 7; d++) opts.push(`<option value="${(w - 1) * 7 + d - 1}">Неделя ${w}, день ${d}</option>`);
     opts.push('<option value="28">Финал, после сезона</option>');
     const cur = st.preview ? String(st.preview.idx) : '';
-    modal(`<h2 style="margin-bottom:6px">Настройки</h2>
+    modal(`<h2 style="margin-bottom:6px;user-select:none;-webkit-user-select:none" data-act="host-tap">Настройки</h2>
       <div class="field"><label for="f-start">Дата старта сезона (первая встреча в Zoom)</label><input type="date" id="f-start" value="${esc(st.start || '')}"></div>
       <button class="btn wide" data-act="save-start">Сохранить дату</button>
       <hr class="sep">
@@ -337,21 +389,23 @@
       <p class="muted small" style="margin:6px 0 10px">Записи хранятся только на этом телефоне. Сохрани файл, если меняешь телефон или чистишь браузер</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn ghost" data-act="export">Сохранить файл</button>
       <label class="btn ghost" style="cursor:pointer">Загрузить файл<input type="file" accept="application/json,.json" id="f-import" hidden></label></div>
-      <hr class="sep">
-      <h3>Предпросмотр для ведущей</h3>
-      <p class="muted small" style="margin:6px 0 10px">Посмотреть, как выглядит замок и квесты в любой день сезона</p>
-      <div class="field"><select id="f-prev">${opts.join('')}</select></div>
+      ${st.host ? `<hr class="sep">
+      <h3>Режим ведущей</h3>
+      <p class="muted small" style="margin:6px 0 10px">Участницы этого блока не видят. Отметки, сделанные здесь, сохраняются как настоящие: перед сезоном можно стереть всё кнопкой внизу</p>
+      <button class="check ${st.unlock ? 'on' : ''}" data-act="unlock" style="margin-bottom:6px">${st.unlock ? ICON.check.replace('<svg', '<svg width="14" height="14"') + ' Все задания открыты' : 'Открыть все задания'}</button>
+      <div class="field"><label for="f-prev">Замок и квесты на любой день сезона</label><select id="f-prev">${opts.join('')}</select></div>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><button class="btn ghost" data-act="overview">Все задания списком</button><button class="link" data-act="host-off">Выключить режим</button></div>` : ''}
       <hr class="sep">
       <p class="muted small">«Совет трёх» — игровой сезон по эго-состояниям. Автор и ведущая — психолог <a href="https://shtemenko-t.github.io/" target="_blank" rel="noopener">Таисия Штеменко</a></p>
       <button class="link" style="margin-top:16px;color:#e7a3a3" data-act="reset">Стереть все записи на этом телефоне</button>`);
-    $('#f-prev').value = cur;
+    if ($('#f-prev')) { $('#f-prev').value = cur;
     $('#f-prev').addEventListener('change', e => {
       const v = e.target.value;
       if (!st.start && v !== '') { alert('Сначала укажи дату старта'); e.target.value = ''; return; }
       if (v === '') st.preview = null;
       else st.preview = { idx: Number(v), label: e.target.selectedOptions[0].textContent.toLowerCase() };
       selDay = null; save(); closeModal(); render();
-    });
+    }); }
     $('#f-import').addEventListener('change', e => {
       const f = e.target.files[0]; if (!f) return;
       const rd = new FileReader();
@@ -361,6 +415,37 @@
       };
       rd.readAsText(f);
     });
+  }
+
+  // ---------- Герб: выбор ----------
+  let crestDraft = null;
+  function openCrest() {
+    if (!crestDraft) crestDraft = Object.assign({ col: 0, sym: 0, name: '' }, st.crest || {});
+    const c = crestDraft;
+    modal(`<div class="eyebrow">Твой замок</div><h2 style="margin:4px 0 14px">Герб замка</h2>
+      <div class="crest-big">${crestSvg(c, 96)}</div>
+      <div class="field"><label for="c-name">Название замка, по желанию</label><input id="c-name" maxlength="28" autocomplete="off" value="${esc(c.name || '')}" placeholder="Например, Замок Северного ветра"></div>
+      <div class="field"><label>Цвет щита</label><div class="swatches">${CREST_COLORS.map((x, i) => `<button class="sw${i === c.col ? ' on' : ''}" style="background:linear-gradient(145deg,${x.f},${x.d})" data-act="crest-col" data-v="${i}" aria-label="${x.n}" aria-pressed="${i === c.col}"></button>`).join('')}</div>
+        <p class="muted small" style="margin-top:6px">${esc(CREST_COLORS[c.col].n)}</p></div>
+      <div class="field"><label>Символ</label><div class="symbols">${CREST_SYMBOLS.map((x, i) => `<button class="sy${i === c.sym ? ' on' : ''}" data-act="crest-sym" data-v="${i}" aria-pressed="${i === c.sym}"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">${x.s}</svg><span>${x.n}</span></button>`).join('')}</div></div>
+      <button class="btn wide" data-act="crest-save">Поднять герб</button>`);
+  }
+
+  // ---------- Обзор сезона для ведущей ----------
+  function openOverview() {
+    const gm = k => GEMS[k].name.toLowerCase();
+    modal(`<div class="eyebrow">Режим ведущей</div><h2 style="margin:4px 0 14px">Все задания сезона</h2>
+      ${WEEKS.map(W => `<div class="card ov"><div class="eyebrow">Неделя ${W.n} · награда: ${esc(W.reward)}</div><h3>${esc(W.title)}</h3>
+        <p class="muted small" style="margin:6px 0 10px">${esc(W.intro)}</p>
+        <ol>${W.days.map(D => `<li>${esc(D.t)}<span class="muted small"> — ${gm(D.g)}${D.meet ? ', встреча в Zoom' : ''}${D.sum ? ', итог недели' : ''}${D.event ? ', открывается карта события' : ''}</span></li>`).join('')}</ol>
+        <p class="muted small" style="margin-top:10px">Книга правил: ${esc(W.book)}</p></div>`).join('')}
+      <div class="card ov"><div class="eyebrow">Карты событий</div><p class="muted small" style="margin:6px 0 8px">Одна на неделю, с 4-го дня, без повторов</p><ol>${EVENTS.map(e => `<li>${esc(e)}</li>`).join('')}</ol></div>
+      <div class="card ov"><div class="eyebrow">Отряд по главам</div>${HEROES.map(H => `<h3 style="margin-top:10px">${esc(H.zone)}</h3><ol>${H.names.map((n, i) => `<li><b>${esc(n)}</b>: ${esc(H.lines[i])}<span class="muted small"> — ${esc(stateWhen(H.id, i + 1))}</span></li>`).join('')}</ol>`).join('')}</div>
+      <div class="card ov"><div class="eyebrow">Награды</div><p class="muted small" style="margin-top:6px">Квест дня — камень своего цвета: сапфир (Взрослый), цитрин (Ребёнок), изумруд (Заботливый Родитель). Карта события, тренировка в тренажёре и глава книги правил — по сапфиру. Серия считает дни 2–6, отмеченные в свой день, один пропуск в неделю прощается</p></div>`);
+  }
+  function stateWhen(id, s) {
+    const arr = HERO_STATE[id], p = arr.indexOf(s);
+    return p === 0 ? 'с пролога' : p === 5 ? 'в финале' : 'с недели ' + p;
   }
 
   // ---------- Онбординг ----------
@@ -380,6 +465,7 @@
       </div></div>`;
   }
 
+  const hostTaps = {};
   // ---------- События ----------
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-act]');
@@ -438,9 +524,40 @@
         break;
       }
       case 'reset':
-        if (confirm('Стереть все записи и камни на этом телефоне? Это не отменить')) { const s0 = st.start; st = blank(); st.start = s0; st.introSeen = true; save(); closeModal(); selDay = null; render(); }
+        if (confirm('Стереть все записи и камни на этом телефоне? Это не отменить')) { const s0 = st.start, h0 = st.host; st = blank(); st.start = s0; st.host = h0; st.introSeen = true; save(); closeModal(); selDay = null; render(); }
         break;
-      case 'preview-off': st.preview = null; selDay = null; save(); render(); break;
+      case 'preview-off': st.preview = null; st.unlock = false; selDay = null; save(); render(); break;
+      case 'hero-name': case 'hero-name-clear': {
+        const val = act === 'hero-name' ? ($('#h-name').value || '').trim().slice(0, 24) : '';
+        if (val) st.names[v] = val; else delete st.names[v];
+        save(); render(); openHero(v);
+        if (val) toast('k', 'Имя дано', 'Теперь это ' + val);
+        break;
+      }
+      case 'crest': crestDraft = null; openCrest(); break;
+      case 'crest-col': case 'crest-sym': {
+        crestDraft.name = ($('#c-name') || {}).value || '';
+        crestDraft[act === 'crest-col' ? 'col' : 'sym'] = Number(v);
+        const y = $('#modal').scrollTop; openCrest(); $('#modal').scrollTop = y; break;
+      }
+      case 'crest-save': {
+        crestDraft.name = (($('#c-name') || {}).value || '').trim().slice(0, 28);
+        st.crest = crestDraft; crestDraft = null; save(); closeModal(); render();
+        toast('j', 'Герб поднят', st.crest.name || 'Над замком твоё знамя');
+        break;
+      }
+      case 'host-tap': {
+        clearTimeout(hostTaps.h); hostTaps.n = (hostTaps.n || 0) + 1;
+        hostTaps.h = setTimeout(() => { hostTaps.n = 0; }, 1500);
+        if (hostTaps.n >= 5) { hostTaps.n = 0; st.host = !st.host; if (!st.host) { st.unlock = false; st.preview = null; } save(); openSettings(); render(); toast('c', st.host ? 'Режим ведущей включён' : 'Режим ведущей выключен', st.host ? 'Блок появился внизу настроек' : 'Приложение как у участницы'); }
+        break;
+      }
+      case 'unlock': {
+        if (!st.start) { alert('Сначала укажи дату старта'); break; }
+        st.unlock = !st.unlock; selDay = null; save(); openSettings(); render(); break;
+      }
+      case 'host-off': st.host = false; st.unlock = false; st.preview = null; selDay = null; save(); closeModal(); render(); break;
+      case 'overview': openOverview(); break;
       case 'enter': {
         const val = $('#i-start').value;
         if (val && !startOk(val)) { alert(badStartMsg(val)); break; }
