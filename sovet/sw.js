@@ -1,6 +1,6 @@
-const CACHE = 'sovet3-v1';
+const CACHE = 'sovet3-v2';
 const ASSETS = [
-  './', 'index.html', 'app.css?v=1', 'fonts.css', 'data.js?v=1', 'app.js?v=1', 'manifest.webmanifest',
+  './', 'index.html', 'app.css?v=1', 'fonts.css', 'data.js?v=1', 'app.js?v=2', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png',
   ...[0,1,2,3,4].map(i => `img/map-${i}.webp`),
   ...['adult','child','overseer','parent'].flatMap(h => [1,2,3].map(s => `img/${h}-${s}.webp`)),

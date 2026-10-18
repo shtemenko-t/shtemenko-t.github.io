@@ -8,12 +8,6 @@
   try { st = Object.assign(blank(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} };
 
-  // дата старта из ссылки ведущей: ?start=2026-11-02
-  try {
-    const p = new URLSearchParams(location.search).get('start');
-    if (p && /^\d{4}-\d{2}-\d{2}$/.test(p) && !st.start) { st.start = p; save(); }
-  } catch (e) {}
-
   // ---------- Даты ----------
   const pad = n => String(n).padStart(2, '0');
   const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
@@ -25,6 +19,14 @@
   const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
   const WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
   const human = s => { const d = parse(s); return d.getDate() + ' ' + MONTHS[d.getMonth()]; };
+  // защита от опечатки в годе: старт не раньше 60 дней назад и не позже 180 дней вперёд
+  const startOk = s => { const n = diff(realToday(), s); return n >= -60 && n <= 180; };
+  // дата старта из ссылки ведущей: ?start=2026-11-02
+  try {
+    const p = new URLSearchParams(location.search).get('start');
+    if (p && /^\d{4}-\d{2}-\d{2}$/.test(p) && !st.start && startOk(p)) { st.start = p; save(); }
+  } catch (e) {}
+  const badStartMsg = s => 'Проверь дату: ' + human(s) + ' ' + s.slice(0, 4) + ' года. Похоже на опечатку в годе — сезон должен стартовать в ближайшие месяцы';
 
   // Положение в сезоне
   function pos() {
@@ -422,6 +424,7 @@
       case 'read': st.read[v] = !st.read[v]; save(); if (st.read[v]) toast('c', '+1 сапфир', 'Глава книги правил прочитана'); render(); break;
       case 'save-start': {
         const val = $('#f-start').value;
+        if (val && !startOk(val)) { alert(badStartMsg(val)); break; }
         st.start = val || null; selDay = null; save(); closeModal(); render();
         if (val) toast('k', 'Дата сохранена', 'Сезон стартует ' + human(val));
         break;
@@ -440,6 +443,7 @@
       case 'preview-off': st.preview = null; selDay = null; save(); render(); break;
       case 'enter': {
         const val = $('#i-start').value;
+        if (val && !startOk(val)) { alert(badStartMsg(val)); break; }
         if (val) st.start = val;
         st.introSeen = true; save();
         $('#intro').hidden = true; $('#intro').innerHTML = '';
