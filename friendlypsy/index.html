@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Найти психолога</title>
+<link rel="preconnect" href="https://docs.google.com">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <h1 class="page-title">Найти психолога</h1>
+
+    <div class="mobile-bar">
+      <button class="filters-toggle" id="filters-open" type="button">
+        Фильтры<span class="filters-count" id="filters-count"></span>
+      </button>
+    </div>
+
+    <div class="filters-overlay" id="filters-overlay"></div>
+
+    <div class="layout">
+      <aside class="filters" id="filters">
+        <div class="filters-head">
+          <h2>Фильтры</h2>
+          <button class="filters-close" id="filters-close" type="button" aria-label="Закрыть">×</button>
+        </div>
+
+        <div class="field">
+          <label for="f-city">Город</label>
+          <select id="f-city">
+            <option value="">Любой</option>
+            <option value="Екатеринбург">Екатеринбург</option>
+            <option value="Ереван">Ереван</option>
+            <option value="Москва">Москва</option>
+            <option value="Новосибирск">Новосибирск</option>
+            <option value="Санкт-Петербург">Санкт-Петербург</option>
+            <option value="Челябинск">Челябинск</option>
+            <option value="online">Онлайн</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="f-format">Формат</label>
+          <select id="f-format">
+            <option value="">Любой</option>
+            <option value="Индивидуально">Индивидуально</option>
+            <option value="Пары">Пары</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="f-session">Сессия</label>
+          <select id="f-session">
+            <option value="">Любая</option>
+            <option value="Онлайн">Онлайн</option>
+            <option value="Очно">Очно</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="f-price">Цена до, ₽</label>
+          <input type="number" id="f-price" placeholder="От 3000 до 8000" min="3000" max="8000" step="500">
+        </div>
+
+        <button class="show-btn" id="filters-apply" type="button">Показать</button>
+        <button class="reset-btn" id="reset">Сбросить фильтры</button>
+      </aside>
+
+      <main>
+        <div class="grid" id="grid"></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="vendor/papaparse.min.js"></script>
+  <script src="data.js"></script>
+  <script src="loader.js"></script>
+  <script src="catalog.js"></script>
+</body>
+</html>
