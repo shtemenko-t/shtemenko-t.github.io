@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Совет трёх</title>
+<meta name="description" content="Игровой сезон по эго-состояниям: Родитель, Взрослый, Ребёнок. Психолог Таисия Штеменко">
+<meta name="theme-color" content="#0d0f24">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Совет трёх">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="preload" href="img/map-0.webp" as="image">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="app.css?v=1">
+</head>
+<body>
+<main class="app" id="app">
+  <section class="screen" id="s-map"></section>
+  <section class="screen" id="s-quest"></section>
+  <section class="screen" id="s-squad"></section>
+  <section class="screen" id="s-chron"></section>
+</main>
+
+<nav class="nav" aria-label="Разделы">
+  <div class="row">
+    <button data-tab="map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 21V9l3-2v3h2V5l3-2 3 2v5h2V7l3 2v12z"/><path d="M10 21v-4a2 2 0 0 1 4 0v4"/></svg>Замок</button>
+    <button data-tab="quest"><span class="q-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z"/><path d="M6 3a2 2 0 0 0-2 2v2h2M9 8h7M9 12h7M9 16h4"/></svg></span>Квест</button>
+    <button data-tab="squad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="7" r="3"/><circle cx="5" cy="10" r="2.2"/><circle cx="19" cy="10" r="2.2"/><path d="M6.5 20a5.5 5.5 0 0 1 11 0M1.5 19a3.6 3.6 0 0 1 4.5-3.4M22.5 19a3.6 3.6 0 0 0-4.5-3.4"/></svg>Отряд</button>
+    <button data-tab="chron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12v15H6a2 2 0 0 0-2 2z"/><path d="M4 20a2 2 0 0 0 2 2h12v-4M8 7h6"/></svg>Хроника</button>
+  </div>
+</nav>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true"><div class="box" id="modal-box"></div></div>
+<div class="intro" id="intro" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="data.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>
