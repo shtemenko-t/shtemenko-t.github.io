@@ -93,6 +93,51 @@ function cardHtml(p) {
   `;
 }
 
+// ---------- случайный порядок карточек ----------
+// Первая карточка в списке получает заметно больше выборов просто из-за позиции.
+// Поэтому каждому посетителю порядок перемешивается случайно, а чтобы при повторном
+// заходе карточки не прыгали, его «ключ» запоминается в браузере.
+// Психологи со статусом «нет мест» (или «занят») всегда уходят в конец списка.
+function visitorSeed() {
+  const key = "friendlypsy:order-seed";
+  try {
+    let seed = localStorage.getItem(key);
+    if (!seed) {
+      seed = Math.random().toString(36).slice(2);
+      localStorage.setItem(key, seed);
+    }
+    return seed;
+  } catch (e) {
+    if (!window.__orderSeed) window.__orderSeed = Math.random().toString(36).slice(2);
+    return window.__orderSeed;
+  }
+}
+
+function orderHash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  // дополнительное перемешивание битов, иначе похожие имена кучкуются
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
+function isBusy(p) {
+  const s = (p.status || "").toLowerCase();
+  return s.includes("нет мест") || s.includes("занят");
+}
+
+function visitorOrder(list) {
+  const seed = visitorSeed();
+  return [...list].sort((a, b) =>
+    (isBusy(a) - isBusy(b)) ||
+    (orderHash(seed + a.id) - orderHash(seed + b.id)));
+}
+
 function applyFilters() {
   const city = document.getElementById("f-city").value;
   const format = document.getElementById("f-format").value;
@@ -117,7 +162,7 @@ function applyFilters() {
 
   const grid = document.getElementById("grid");
   if (filtered.length) {
-    grid.innerHTML = filtered.map(cardHtml).join("");
+    grid.innerHTML = visitorOrder(filtered).map(cardHtml).join("");
     return;
   }
 
