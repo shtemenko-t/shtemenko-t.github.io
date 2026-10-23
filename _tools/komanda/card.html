@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../fonts.css">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1080px;height:1080px;overflow:hidden;background:#FAFAF8}
+  body{font-family:'Golos Text',system-ui,sans-serif;color:#141414;position:relative;--s:1}
+  .stripe{position:absolute;left:0;top:0;bottom:0;width:14px;background:#141414}
+  .wrap{position:absolute;left:14px;right:0;top:0;bottom:0;display:flex;align-items:center;padding:0 64px 0 58px}
+  .inner{width:100%}
+  .head{display:flex;gap:calc(40px*var(--s));align-items:center;margin-bottom:calc(36px*var(--s))}
+  .photo{width:calc(330px*var(--s));height:calc(330px*var(--s));flex:none;border-radius:28px;overflow:hidden;background:#e9e8e3}
+  .photo img{width:100%;height:100%;object-fit:cover;display:block}
+  .name{font-size:calc(76px*var(--s));font-weight:700;line-height:1.02;letter-spacing:-.01em}
+  .role{font-size:calc(34px*var(--s));font-weight:500;color:#555;margin-top:calc(12px*var(--s));line-height:1.2}
+  .meta{font-size:calc(28px*var(--s));color:#141414;margin-top:calc(18px*var(--s));line-height:1.35}
+  .meta b{font-weight:600}
+  .cols{display:flex;gap:calc(34px*var(--s));border-top:2px solid #141414;padding-top:calc(30px*var(--s))}
+  .col{flex:1;min-width:0;display:flex;flex-direction:column;gap:calc(24px*var(--s))}
+  .col + .col{border-left:2px solid #d9d8d2;padding-left:calc(34px*var(--s))}
+  .qrcol{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(16px*var(--s))}
+  .qrcol img{width:calc(330px*var(--s));height:auto;border-radius:24px;display:block}
+  .qrcol .cap{font-size:calc(26px*var(--s));font-weight:600;text-align:center;line-height:1.25}
+  .lbl{font-size:calc(22px*var(--s));font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#777;margin-bottom:calc(10px*var(--s))}
+  .chips{display:flex;flex-wrap:wrap;gap:calc(10px*var(--s))}
+  .chip{font-size:calc(27px*var(--s));line-height:1.15;padding:calc(8px*var(--s)) calc(16px*var(--s));border-radius:calc(22px*var(--s));font-weight:500}
+  .gray .chip{background:#E8E7E2;color:#2b2b2b}
+  .green .chip{background:#DDF0E1;color:#1F6B35}
+  .red .chip{background:#F8E0DD;color:#A33A2C}
+  .price{font-size:calc(28px*var(--s));line-height:1.35;font-weight:500}
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<div class="wrap"><div class="inner" id="inner"></div></div>
+<script>
+// window.PSY = {name, role, photo, meta:[...], approach:[], topics:[], exclusions:[], price, qr?, mode:"info"|"qr"}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function chips(title, list, cls){
+  if(!list || !list.length) return "";
+  return `<div class="${cls}"><div class="lbl">${title}</div><div class="chips">${list.map(x=>`<span class="chip">${esc(x)}</span>`).join("")}</div></div>`;
+}
+function build(p){
+  const approach = chips("Подход", p.approach, "gray");
+  const topics = chips("Частые запросы", p.topics, "green");
+  const excl = chips("Не работает с", p.exclusions && p.exclusions.length ? p.exclusions : null, "red");
+  const price = p.price ? `<div><div class="lbl">Стоимость</div><div class="price">${esc(p.price)}</div></div>` : "";
+  let cols;
+  if(p.mode === "qr"){
+    cols = `<div class="col">${approach}${topics}${excl}${price}</div>
+      <div class="qrcol"><img src="${p.qr}" alt=""><div class="cap">Записаться<br>в Telegram</div></div>`;
+  } else {
+    cols = `<div class="col">${approach}${topics}</div><div class="col">${excl}${price}</div>`;
+  }
+  document.getElementById("inner").innerHTML = `
+    <div class="head">
+      <div class="photo"><img src="${p.photo}" style="object-position:${p.position||"center"}" alt=""></div>
+      <div><div class="name">${esc(p.name)}</div><div class="role">${esc(p.role)}</div>
+        <div class="meta">${p.meta.map(esc).join("<br>")}</div></div>
+    </div>
+    <div class="cols">${cols}</div>`;
+}
+async function fit(){
+  await document.fonts.ready;
+  await Promise.all([...document.images].map(i=>i.complete?0:new Promise(r=>{i.onload=i.onerror=r})));
+  const inner=document.getElementById("inner"); let s=1;
+  const max=1080-90;
+  while(inner.scrollHeight>max && s>0.55){ s-=0.03; document.body.style.setProperty("--s",s); }
+  // the right column on the info card can be narrower than its chips — shrink until nothing overflows sideways
+  const over=()=>[...document.querySelectorAll(".col")].some(c=>c.scrollWidth>c.clientWidth+1);
+  while(over() && s>0.55){ s-=0.03; document.body.style.setProperty("--s",s); }
+  window.FIT={scale:s, height:inner.scrollHeight};
+}
+if(window.PSY){ build(window.PSY); fit(); }
+</script>
+</body>
+</html>
