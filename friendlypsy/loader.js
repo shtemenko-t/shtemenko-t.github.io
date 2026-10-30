@@ -45,21 +45,19 @@ function cacheSet(key, value) {
   try { localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value)); } catch (e) {}
 }
 
-// Отдаёт данные из кэша сразу (если есть) и параллельно обновляет их из сети.
+// Отдаёт данные сразу — из кэша, а при первом заходе из data.js — и параллельно
+// обновляет их из сети. Раньше при первом заходе страница до 5 секунд ждала
+// Google и стояла без карточек — люди думали, что сайт не открывается.
 // onUpdate вызывается, только если свежие данные отличаются от показанных.
 async function cachedLoad(key, fetchFresh, fallback, onUpdate) {
   const cached = cacheGet(key);
-  const freshPromise = fetchFresh().then(fresh => {
-    if (fresh) cacheSet(key, fresh);
-    return fresh;
+  const shown = cached && cached.length ? cached : fallback;
+  fetchFresh().then(fresh => {
+    if (!fresh) return;
+    cacheSet(key, fresh);
+    if (onUpdate && JSON.stringify(fresh) !== JSON.stringify(shown)) onUpdate(fresh);
   });
-  if (cached && cached.length) {
-    freshPromise.then(fresh => {
-      if (fresh && onUpdate && JSON.stringify(fresh) !== JSON.stringify(cached)) onUpdate(fresh);
-    });
-    return cached;
-  }
-  return (await freshPromise) || fallback;
+  return shown;
 }
 
 // Таблица Google без VPN может отвечать очень долго. Ждём не дольше 5 секунд,
