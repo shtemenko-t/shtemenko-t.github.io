@@ -138,6 +138,24 @@ function visitorOrder(list) {
     (orderHash(seed + a.id) - orderHash(seed + b.id)));
 }
 
+// Цена «до» сравнивается только с ценами выбранного формата и вида сессии:
+// при «Пары» не должна срабатывать более дешёвая индивидуальная цена.
+// Если формат или сессия не выбраны — берутся все подходящие цены.
+function filterPrice(prices, format, session) {
+  const f = format.toLowerCase(), s = session.toLowerCase();
+  const keys = [];
+  if (f !== "пары") {
+    if (s !== "очно") keys.push("online_ind");
+    if (s !== "онлайн") keys.push("offline_ind");
+  }
+  if (f !== "индивидуально") {
+    if (s !== "очно") keys.push("online_pair");
+    if (s !== "онлайн") keys.push("offline_pair");
+  }
+  const vals = keys.map(k => prices[k]).filter(v => v !== null && v !== undefined);
+  return vals.length ? Math.min(...vals) : null;
+}
+
 function applyFilters() {
   const city = document.getElementById("f-city").value;
   const format = document.getElementById("f-format").value;
@@ -152,7 +170,7 @@ function applyFilters() {
     if (format && !p.formats.some(f => f.toLowerCase() === format.toLowerCase())) return false;
     if (session && !p.sessions.some(s => s.toLowerCase() === session.toLowerCase())) return false;
     if (maxPrice) {
-      const price = minPrice(p.prices);
+      const price = filterPrice(p.prices, format, session);
       if (price === null || price > Number(maxPrice)) return false;
     }
     return true;
