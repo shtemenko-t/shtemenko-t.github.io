@@ -10,6 +10,11 @@ import sys
 
 from PIL import Image, ImageOps
 
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 src, dst, optdir = sys.argv[1], sys.argv[2], sys.argv[3]
 os.makedirs(optdir, exist_ok=True)
 slug = os.path.splitext(os.path.basename(dst))[0]

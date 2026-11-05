@@ -18,6 +18,8 @@ const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "../..");
 const SITE = path.join(REPO, "friendlypsy");
+const PY = process.platform === "win32" ? "python" : "python3";
+const NPM = process.platform === "win32" ? "npm.cmd" : "npm";
 
 const args = {};
 for (let i = 2; i < process.argv.length; i++) {
@@ -40,7 +42,7 @@ fs.mkdirSync(out, { recursive: true });
 const ext = path.extname(args.photo).toLowerCase() === ".png" ? "png" : "jpg";
 const photoName = `${slug}.${ext}`;
 const photoTmp = path.join(out, photoName);
-execFileSync("python3", ["-I", path.join(HERE, "photo.py"), args.photo, photoTmp, path.join(out, "opt")], { stdio: "inherit" });
+execFileSync(PY, ["-I", path.join(HERE, "photo.py"), args.photo, photoTmp, path.join(out, "opt")], { stdio: "inherit", env: { ...process.env, PYTHONIOENCODING: "utf-8" } });
 
 // ---------- данные для карточки ----------
 const formats = list("Формат терапии").map(s => s.toLowerCase());
@@ -64,7 +66,20 @@ const psy = {
 };
 
 // ---------- карточки ----------
-const pw = require(path.join(execFileSync("npm", ["root", "-g"]).toString().trim(), "playwright"));
+function loadPlaywright() {
+  const candidates = [];
+  try { candidates.push(require.resolve("playwright")); } catch {}
+  if (process.platform === "win32") {
+    candidates.push(path.join(process.env.APPDATA || "", "npm", "node_modules", "playwright"));
+  } else {
+    candidates.push(path.join(execFileSync(NPM, ["root", "-g"]).toString().trim(), "playwright"));
+  }
+  for (const c of candidates) {
+    try { return require(c); } catch {}
+  }
+  throw new Error("Не найден playwright. Установите: npm install -g playwright");
+}
+const pw = loadPlaywright();
 const browser = await pw.chromium.launch();
 const report = {};
 for (const mode of qr ? ["info", "qr"] : ["info"]) {
