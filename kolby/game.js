@@ -50,6 +50,23 @@
     return document.getElementById(id);
   }
 
+  function tint(hex, amount) {
+    var n = parseInt(hex.slice(1), 16);
+    var r = (n >> 16) & 255;
+    var g = (n >> 8) & 255;
+    var b = n & 255;
+    if (amount >= 0) {
+      r += (255 - r) * amount;
+      g += (255 - g) * amount;
+      b += (255 - b) * amount;
+    } else {
+      r *= 1 + amount;
+      g *= 1 + amount;
+      b *= 1 + amount;
+    }
+    return 'rgb(' + Math.round(r) + ',' + Math.round(g) + ',' + Math.round(b) + ')';
+  }
+
   function cloneBoard(list) {
     var out = new Array(list.length);
     for (var i = 0; i < list.length; i++) out[i] = list[i].slice();
@@ -190,11 +207,75 @@
     return 'data:audio/wav;base64,' + window.btoa(binary);
   }
 
+  function normalize(data, target) {
+    var peak = 0;
+    for (var i = 0; i < data.length; i++) {
+      var a = Math.abs(data[i]);
+      if (a > peak) peak = a;
+    }
+    if (peak < 0.0001) return data;
+    var k = target / peak;
+    for (var j = 0; j < data.length; j++) data[j] *= k;
+    return data;
+  }
+
   function synth(dur, fn) {
     var n = Math.floor(SOUND_RATE * dur);
     var data = new Float32Array(n);
     for (var i = 0; i < n; i++) data[i] = fn(i / SOUND_RATE, i, n);
-    return encodeWav(data);
+    return encodeWav(normalize(data, 0.86));
+  }
+
+  /* Вода: шум через два фильтра плюс пузырьки — так переливание звучит
+     как настоящая жидкость, а не как сигнал. */
+  function waterPour(seed) {
+    var rnd = E.mulberry32(seed);
+    var dur = 0.5;
+    var bubbles = [];
+    var at = 0.015;
+    while (at < dur - 0.06) {
+      bubbles.push({
+        at: at,
+        f: 380 + rnd() * 950,
+        len: 0.025 + rnd() * 0.05,
+        amp: 0.12 + rnd() * 0.24
+      });
+      at += 0.025 + rnd() * 0.06;
+    }
+    var lp = 0;
+    var hp = 0;
+    return synth(dur, function (time) {
+      var k = time / dur;
+      var env = Math.min(1, time / 0.02) * Math.pow(1 - k, 1.15);
+      var white = rnd() * 2 - 1;
+      lp += (white - lp) * 0.14;
+      hp += (white - lp) * 0.5;
+      var sum = lp * 1.5 + hp * 0.55;
+      for (var i = 0; i < bubbles.length; i++) {
+        var b = bubbles[i];
+        var local = time - b.at;
+        if (local >= 0 && local <= b.len) {
+          var e = Math.sin(Math.PI * (local / b.len));
+          sum += Math.sin(2 * Math.PI * b.f * local) * b.amp * e * e;
+        }
+      }
+      return sum * env * 0.8;
+    });
+  }
+
+  function waterSplash(seed) {
+    var rnd = E.mulberry32(seed);
+    var dur = 0.22;
+    var lp = 0;
+    return synth(dur, function (time) {
+      var k = time / dur;
+      var env = Math.exp(-6 * k);
+      var white = rnd() * 2 - 1;
+      lp += (white - lp) * 0.3;
+      var body = (white - lp) * 0.5;
+      var plop = Math.sin(2 * Math.PI * (700 - 380 * k) * time) * 0.35;
+      return (body + plop) * env;
+    });
   }
 
   function buildSounds() {
@@ -205,13 +286,10 @@
           var k = t / 0.08;
           return Math.sin(2 * Math.PI * (430 - 120 * k) * t) * 0.5 * Math.pow(1 - k, 1.4);
         })),
-        pour: makeEntry(synth(0.26, function (t) {
-          var k = t / 0.26;
-          var env = Math.pow(1 - k, 1.6);
-          var tone = Math.sin(2 * Math.PI * (330 - 170 * k) * t) * 0.5;
-          var noise = (Math.random() * 2 - 1) * 0.16 * Math.pow(1 - k, 3);
-          return (tone + noise) * env * 0.8;
-        })),
+        pour0: makeEntry(waterPour(1013)),
+        pour1: makeEntry(waterPour(2027)),
+        pour2: makeEntry(waterPour(3041)),
+        splash: makeEntry(waterSplash(4051)),
         win: makeEntry(synth(0.6, function (t) {
           var notes = [[0, 523], [0.12, 659], [0.24, 784], [0.36, 1046]];
           var sum = 0;
@@ -338,7 +416,16 @@
   }
 
   function soundPour(count) {
-    playSound('pour', 0.9 + (4 - count) * 0.05, 320);
+    if (!soundOn) return;
+    unlockAudio();
+    unlockFiles();
+    var variants = ['pour0', 'pour1', 'pour2'];
+    var name = variants[Math.floor(Math.random() * variants.length)];
+    var rate = 0.92 + Math.random() * 0.16;
+    if (!playFile(name, rate)) tone('sine', 320, 170, 0.12, 0, 0.2);
+    setTimeout(function () {
+      if (soundOn) playFile('splash', 0.95 + Math.random() * 0.1);
+    }, 130 + Math.floor(Math.random() * 60));
   }
 
   function soundBad() {
@@ -720,8 +807,11 @@
           seg.classList.add('mystery');
           seg.textContent = '?';
         } else {
-          seg.style.background = E.colorFor(colors, colorIndex);
+          var base = E.colorFor(colors, colorIndex);
+          seg.style.background = 'linear-gradient(180deg, ' + tint(base, 0.3) + ', ' +
+            base + ' 55%, ' + tint(base, -0.18) + ')';
         }
+        if (l === flasks[i].length - 1) seg.classList.add('top');
         if (anim && anim.index === i && l >= anim.from) seg.classList.add('in');
         if (anim && anim.outIndex === i && l >= anim.outFrom) seg.classList.add('out');
         body.appendChild(seg);
@@ -847,16 +937,47 @@
     if (!srcEl || !dstEl) return;
     var a = srcEl.getBoundingClientRect();
     var b = dstEl.getBoundingClientRect();
-    var height = Math.max(10, (b.top + b.height * 0.3) - (a.top + a.height * 0.2));
-    var s = document.createElement('div');
-    s.className = 'stream';
-    s.style.left = (b.left + b.width / 2 - 3) + 'px';
-    s.style.top = (a.top + a.height * 0.2) + 'px';
-    s.style.height = height + 'px';
-    s.style.background = color;
-    document.body.appendChild(s);
+    var x = b.left + b.width / 2;
+    var top = a.top + a.height * 0.2;
+    var bottom = b.top + b.height * 0.26;
+    var height = Math.max(12, bottom - top);
+
+    var stream = document.createElement('div');
+    stream.className = 'stream';
+    stream.style.left = (x - 3) + 'px';
+    stream.style.top = top + 'px';
+    stream.style.height = height + 'px';
+    stream.style.background = 'linear-gradient(180deg, ' + tint(color, 0.45) + ', ' +
+      color + ' 40%, ' + tint(color, -0.1) + ')';
+    document.body.appendChild(stream);
     setTimeout(function () {
-      if (s.parentNode) s.parentNode.removeChild(s);
+      if (stream.parentNode) stream.parentNode.removeChild(stream);
+    }, 500);
+
+    for (var i = 0; i < 3; i++) {
+      var drop = document.createElement('div');
+      drop.className = 'drop';
+      drop.style.left = (x - 2 + (Math.random() * 8 - 4)) + 'px';
+      drop.style.top = (top + 4 + i * 10) + 'px';
+      drop.style.background = tint(color, 0.25);
+      drop.style.animationDelay = (i * 0.06).toFixed(2) + 's';
+      document.body.appendChild(drop);
+      (function (el) {
+        setTimeout(function () {
+          if (el.parentNode) el.parentNode.removeChild(el);
+        }, 520);
+      }(drop));
+    }
+
+    var splash = document.createElement('div');
+    splash.className = 'splash';
+    splash.style.left = x + 'px';
+    splash.style.top = bottom + 'px';
+    splash.style.background = 'radial-gradient(circle, ' + tint(color, 0.75) +
+      ', rgba(255,255,255,0) 70%)';
+    document.body.appendChild(splash);
+    setTimeout(function () {
+      if (splash.parentNode) splash.parentNode.removeChild(splash);
     }, 460);
   }
 
@@ -890,6 +1011,13 @@
       if (undoStack.length > 500) undoStack.shift();
       moves += 1;
       render({ index: j, from: oldLen });
+      var targetEl = flaskEls[j];
+      if (targetEl) {
+        targetEl.classList.add('wave');
+        setTimeout(function () {
+          targetEl.classList.remove('wave');
+        }, 560);
+      }
       locked = false;
       saveProgress();
       if (E.isSolved(flasks, caps)) {
@@ -1200,6 +1328,22 @@
     els.dailyCard = $('dailyCard');
     els.dailySub = $('dailySub');
     els.soundTest = $('soundTest');
+
+    window.KolbyDebug = {
+      sounds: function () {
+        var files = buildSounds();
+        if (!files) return null;
+        var out = {};
+        for (var key in files) {
+          if (Object.prototype.hasOwnProperty.call(files, key)) out[key] = files[key].uri;
+        }
+        return out;
+      },
+      audioState: function () {
+        var ctx = ensureAudio();
+        return ctx ? ctx.state : 'none';
+      }
+    };
 
     loadSettings();
     updateSoundBtn();

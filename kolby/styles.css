@@ -784,3 +784,81 @@ button {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+/* ================= версия 6: вода — струя, капли, всплеск, волна ================= */
+
+.stream {
+  position: fixed;
+  width: 6px;
+  border-radius: 3px;
+  z-index: 15;
+  pointer-events: none;
+  transform-origin: 50% 0;
+  filter: blur(0.3px);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
+  animation: streamGo 0.46s ease-out forwards;
+}
+
+@keyframes streamGo {
+  0% { transform: scaleY(0.05); opacity: 0; }
+  15% { opacity: 0.95; }
+  60% { transform: scaleY(1); opacity: 0.92; }
+  100% { transform: scaleY(1) translateY(8px); opacity: 0; }
+}
+
+.drop {
+  position: fixed;
+  width: 4px;
+  height: 6px;
+  border-radius: 50% 50% 45% 45%;
+  z-index: 15;
+  pointer-events: none;
+  animation: dropFall 0.42s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes dropFall {
+  from { transform: translateY(0) scaleY(1); opacity: 0.95; }
+  to { transform: translateY(46px) scaleY(0.55); opacity: 0; }
+}
+
+.splash {
+  position: fixed;
+  width: 18px;
+  height: 11px;
+  border-radius: 50%;
+  z-index: 16;
+  pointer-events: none;
+  animation: splashPop 0.42s ease-out forwards;
+}
+
+@keyframes splashPop {
+  from { transform: translate(-50%, -50%) scale(0.35); opacity: 0.95; }
+  to { transform: translate(-50%, -50%) scale(2.3); opacity: 0; }
+}
+
+.flask.wave .body {
+  animation: bodyWave 0.5s ease-out;
+}
+
+@keyframes bodyWave {
+  0% { transform: translateY(2px); }
+  40% { transform: translateY(-2px); }
+  100% { transform: none; }
+}
+
+.liquid.top::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  right: -5px;
+  top: 1px;
+  height: 5px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.1));
+  opacity: 0.75;
+  animation: surfaceBob 3.4s ease-in-out infinite;
+}
+
+@keyframes surfaceBob {
+  0%, 100% { transform: translateY(0) scaleX(1); opacity: 0.7; }
+  50% { transform: translateY(-1px) scaleX(1.05); opacity: 0.85; }
+}
