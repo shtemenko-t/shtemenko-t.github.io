@@ -7,6 +7,7 @@
   var STORAGE_KEY = 'kolby.state.v1';
   var SETTINGS_KEY = 'kolby.settings.v1';
   var SOUND_RATE = 22050;
+  var APP_VERSION = 7;
 
   /* ---------- активная доска ---------- */
 
@@ -472,7 +473,7 @@
     var ctx = ensureAudio();
     var web = ctx ? ctx.state : 'недоступен';
     toast('Проверка звука: файл ' + (played ? 'играет' : 'не запустился') +
-      ', веб-аудио: ' + web + '. Если тишина — проверь переключатель «Без звука» на боку iPhone');
+      ', веб-аудио: ' + web + ' · версия ' + APP_VERSION + '. Если тишина — проверь переключатель «Без звука» на боку iPhone');
   }
 
   function toast(text) {
@@ -933,46 +934,60 @@
     }
   }
 
-  function spawnStream(srcEl, dstEl, color) {
+  /* Струя идёт от горлышка наклонённой колбы к горлышку приёмника. */
+  function spawnStream(srcEl, dstEl, color, dir) {
     if (!srcEl || !dstEl) return;
     var a = srcEl.getBoundingClientRect();
     var b = dstEl.getBoundingClientRect();
-    var x = b.left + b.width / 2;
-    var top = a.top + a.height * 0.2;
-    var bottom = b.top + b.height * 0.26;
-    var height = Math.max(12, bottom - top);
+
+    var theta = (dir > 0 ? 26 : -26) * Math.PI / 180;
+    var cx = a.left + a.width / 2;
+    var bottom = a.top + a.height;
+    var edge = (dir > 0 ? 1 : -1) * a.width / 2 * 0.92;
+    var x0 = cx + edge * Math.cos(theta) + a.height * Math.sin(theta);
+    var y0 = bottom + edge * Math.sin(theta) - a.height * Math.cos(theta) + 6;
+
+    var x1 = b.left + b.width / 2;
+    var y1 = b.top + Math.min(10, b.height * 0.08);
+
+    var dx = x1 - x0;
+    var dy = y1 - y0;
+    var len = Math.max(14, Math.sqrt(dx * dx + dy * dy));
+    var rot = Math.atan2(dy, dx) * 180 / Math.PI;
 
     var stream = document.createElement('div');
     stream.className = 'stream';
-    stream.style.left = (x - 3) + 'px';
-    stream.style.top = top + 'px';
-    stream.style.height = height + 'px';
-    stream.style.background = 'linear-gradient(180deg, ' + tint(color, 0.45) + ', ' +
-      color + ' 40%, ' + tint(color, -0.1) + ')';
+    stream.style.left = x0 + 'px';
+    stream.style.top = (y0 - 3) + 'px';
+    stream.style.width = len.toFixed(1) + 'px';
+    stream.style.setProperty('--rot', rot.toFixed(1) + 'deg');
+    stream.style.background = 'linear-gradient(90deg, ' + tint(color, 0.55) + ', ' +
+      color + ' 60%, ' + tint(color, -0.05) + ')';
     document.body.appendChild(stream);
     setTimeout(function () {
       if (stream.parentNode) stream.parentNode.removeChild(stream);
-    }, 500);
+    }, 520);
 
     for (var i = 0; i < 3; i++) {
+      var t = 0.4 + i * 0.2;
       var drop = document.createElement('div');
       drop.className = 'drop';
-      drop.style.left = (x - 2 + (Math.random() * 8 - 4)) + 'px';
-      drop.style.top = (top + 4 + i * 10) + 'px';
-      drop.style.background = tint(color, 0.25);
-      drop.style.animationDelay = (i * 0.06).toFixed(2) + 's';
+      drop.style.left = (x0 + dx * t - 2) + 'px';
+      drop.style.top = (y0 + dy * t) + 'px';
+      drop.style.background = tint(color, 0.35);
+      drop.style.animationDelay = (i * 0.05).toFixed(2) + 's';
       document.body.appendChild(drop);
       (function (el) {
         setTimeout(function () {
           if (el.parentNode) el.parentNode.removeChild(el);
-        }, 520);
+        }, 560);
       }(drop));
     }
 
     var splash = document.createElement('div');
     splash.className = 'splash';
-    splash.style.left = x + 'px';
-    splash.style.top = bottom + 'px';
+    splash.style.left = x1 + 'px';
+    splash.style.top = y1 + 'px';
     splash.style.background = 'radial-gradient(circle, ' + tint(color, 0.75) +
       ', rgba(255,255,255,0) 70%)';
     document.body.appendChild(splash);
@@ -1002,7 +1017,7 @@
     }
     if (dstEl) dstEl.classList.add('receive');
 
-    if (!isHiddenColor(colorIndex)) spawnStream(srcEl, dstEl, color);
+    if (!isHiddenColor(colorIndex)) spawnStream(srcEl, dstEl, color, dir);
     soundPour(n);
 
     setTimeout(function () {
@@ -1328,6 +1343,8 @@
     els.dailyCard = $('dailyCard');
     els.dailySub = $('dailySub');
     els.soundTest = $('soundTest');
+    els.appVersion = $('appVersion');
+    if (els.appVersion) els.appVersion.textContent = 'версия ' + APP_VERSION;
 
     window.KolbyDebug = {
       sounds: function () {
