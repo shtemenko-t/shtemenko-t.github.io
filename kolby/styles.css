@@ -950,3 +950,11 @@ button {
 .lab-btn:active {
   transform: scale(0.98);
 }
+/* ================= версия 10: колба поднимается и льёт вниз ================= */
+
+.flask.pouring {
+  transition: transform 0.19s cubic-bezier(0.15, 0.85, 0.3, 1);
+  transform: translateY(-48%) rotate(var(--tilt, 32deg));
+  transform-origin: 50% 92%;
+  z-index: 6;
+}

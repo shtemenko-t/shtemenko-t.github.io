@@ -7,7 +7,7 @@
   var STORAGE_KEY = 'kolby.state.v1';
   var SETTINGS_KEY = 'kolby.settings.v1';
   var SOUND_RATE = 22050;
-  var APP_VERSION = 9;
+  var APP_VERSION = 10;
 
   /* ---------- активная доска ---------- */
 
@@ -1000,64 +1000,62 @@
 
   /* Струя льётся дугой: выходит из горлышка наклонённой колбы и падает
      в горлышко приёмника, как настоящая жидкость. */
-  function spawnStream(srcEl, dstEl, color, dir) {
+  function spawnStream(srcEl, dstEl, color, dir, targetLevel, targetCap) {
     if (!srcEl || !dstEl) return;
     var a = srcEl.getBoundingClientRect();
     var b = dstEl.getBoundingClientRect();
 
-    var theta = (dir > 0 ? 26 : -26) * Math.PI / 180;
-    var cx = a.left + a.width / 2;
-    var bottom = a.top + a.height;
-    var edge = (dir > 0 ? 1 : -1) * a.width / 2 * 0.9;
-    var x0 = cx + edge * Math.cos(theta) + a.height * Math.sin(theta);
-    var y0 = bottom + edge * Math.sin(theta) - a.height * Math.cos(theta) + 8;
+    /* колба поднимается на 48% высоты и наклоняется на 32 градуса,
+       поэтому горлышко оказывается выше и сбоку от приёмника */
+    var theta = (dir > 0 ? 32 : -32) * Math.PI / 180;
+    var w = a.width;
+    var h = a.height;
+    var cx = a.left + w / 2;
+    var originY = a.top + h * 0.92;
+    var lift = h * 0.48;
+    var localX = (dir > 0 ? 1 : -1) * w * 0.46;
+    var localY = -h * 0.86;
+    var mx = cx + localX * Math.cos(theta) - localY * Math.sin(theta);
+    var my = originY - lift + localX * Math.sin(theta) + localY * Math.cos(theta);
 
+    /* струя заканчивается чуть внутри горлышка приёмника */
     var x1 = b.left + b.width / 2;
-    var y1 = b.top + Math.min(10, b.height * 0.08);
+    var surfaceY = b.top + Math.min(14, b.height * 0.1);
 
-    var style = streamStyle;
-    /* у горлышка струя идёт почти горизонтально, дальше падает вниз */
-    var cpx = x0 + (x1 - x0) * (style === 2 ? 0.9 : 0.72);
-    var cpy = y0 + Math.max(style === 2 ? 4 : 12, (y1 - y0) * (style === 2 ? 0.06 : 0.18));
-    var d = 'M ' + x0.toFixed(1) + ' ' + y0.toFixed(1) +
+    var dx = x1 - mx;
+    var dy = surfaceY - my;
+    var cpx = mx + dx * 0.35;
+    var cpy = my + dy * 0.8;
+    var d = 'M ' + mx.toFixed(1) + ' ' + my.toFixed(1) +
       ' Q ' + cpx.toFixed(1) + ' ' + cpy.toFixed(1) +
-      ' ' + x1.toFixed(1) + ' ' + y1.toFixed(1);
+      ' ' + x1.toFixed(1) + ' ' + surfaceY.toFixed(1);
 
     var ns = 'http://www.w3.org/2000/svg';
     var svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('class', 'stream-svg');
     svg.setAttribute('viewBox', '0 0 ' + window.innerWidth + ' ' + window.innerHeight);
 
+    var style = streamStyle;
     var main = null;
-    var shine = null;
     if (style !== 3) {
       main = document.createElementNS(ns, 'path');
       main.setAttribute('d', d);
       main.setAttribute('fill', 'none');
       main.setAttribute('stroke', color);
-      main.setAttribute('stroke-width', style === 2 ? '10' : '5');
-      main.setAttribute('stroke-linecap', 'round');
+      main.setAttribute('stroke-width', style === 2 ? '7' : '4.5');
+      main.setAttribute('stroke-linecap', 'butt');
       main.setAttribute('class', 'stream-path');
       svg.appendChild(main);
-
-      shine = document.createElementNS(ns, 'path');
-      shine.setAttribute('d', d);
-      shine.setAttribute('fill', 'none');
-      shine.setAttribute('stroke', tint(color, 0.65));
-      shine.setAttribute('stroke-width', style === 2 ? '3' : '1.7');
-      shine.setAttribute('stroke-linecap', 'round');
-      shine.setAttribute('class', 'stream-shine');
-      svg.appendChild(shine);
     }
 
-    var dropCount = style === 1 ? 3 : (style === 2 ? 2 : 6);
-    for (var i = 0; i < dropCount; i++) {
+    var dropCount = style === 1 ? 2 : (style === 2 ? 2 : 6);
+    for (var k = 0; k < dropCount; k++) {
       var dot = document.createElementNS(ns, 'circle');
-      dot.setAttribute('r', (style === 3 ? 3.2 - i * 0.2 : 2.4 - i * 0.3).toFixed(1));
-      dot.setAttribute('fill', tint(color, 0.4));
+      dot.setAttribute('r', (style === 3 ? 3 : 1.8).toFixed(1));
+      dot.setAttribute('fill', color);
       var motion = document.createElementNS(ns, 'animateMotion');
-      motion.setAttribute('dur', '0.42s');
-      motion.setAttribute('begin', (0.05 * i).toFixed(2) + 's');
+      motion.setAttribute('dur', '0.4s');
+      motion.setAttribute('begin', (0.04 * k).toFixed(2) + 's');
       motion.setAttribute('fill', 'freeze');
       motion.setAttribute('path', d);
       dot.appendChild(motion);
@@ -1066,37 +1064,32 @@
 
     document.body.appendChild(svg);
 
-    if (main && shine) {
-      var len = 120;
+    if (main) {
+      var len = 60;
       try {
         len = main.getTotalLength();
       } catch (e) {
-        len = 120;
+        len = 60;
       }
       main.style.strokeDasharray = len;
       main.style.strokeDashoffset = len;
-      shine.style.strokeDasharray = len;
-      shine.style.strokeDashoffset = len;
-
       setTimeout(function () {
-        main.style.transition = 'stroke-dashoffset 0.15s linear';
-        shine.style.transition = 'stroke-dashoffset 0.15s linear';
+        main.style.transition = 'stroke-dashoffset 0.12s linear';
         main.style.strokeDashoffset = '0';
-        shine.style.strokeDashoffset = '0';
       }, 10);
     }
 
     setTimeout(function () {
       svg.classList.add('fade');
-    }, 340);
+    }, 320);
     setTimeout(function () {
       if (svg.parentNode) svg.parentNode.removeChild(svg);
-    }, 600);
+    }, 560);
 
     var splash = document.createElement('div');
     splash.className = 'splash';
     splash.style.left = x1 + 'px';
-    splash.style.top = y1 + 'px';
+    splash.style.top = surfaceY + 'px';
     splash.style.background = 'radial-gradient(circle, ' + tint(color, 0.75) +
       ', rgba(255,255,255,0) 70%)';
     document.body.appendChild(splash);
@@ -1119,14 +1112,14 @@
 
     if (srcEl) {
       srcEl.classList.remove('selected');
-      srcEl.style.setProperty('--tilt', (dir * 26) + 'deg');
+      srcEl.style.setProperty('--tilt', (dir * 32) + 'deg');
       srcEl.classList.add('pouring');
       var segs = srcEl.querySelectorAll('.liquid');
       for (var k = outFrom; k < segs.length; k++) segs[k].classList.add('out');
     }
     if (dstEl) dstEl.classList.add('receive');
 
-    if (!isHiddenColor(colorIndex)) spawnStream(srcEl, dstEl, color, dir);
+    if (!isHiddenColor(colorIndex)) spawnStream(srcEl, dstEl, color, dir, oldLen, caps[j]);
     soundPour(n);
 
     setTimeout(function () {
