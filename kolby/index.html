@@ -20,13 +20,23 @@
 <body>
 <div id="app">
   <header class="top">
-    <div>
-      <div class="level" id="levelLabel">Уровень 1</div>
-      <div class="level-sub" id="levelSub"></div>
-    </div>
-    <div class="moves">
-      <b id="moves">0</b>
-      <span>ходов</span>
+    <button class="level-btn" id="levelBtn" type="button" aria-label="Выбрать уровень">
+      <span class="level" id="levelLabel">Уровень 1</span>
+      <span class="level-sub" id="levelSub"></span>
+    </button>
+    <div class="top-right">
+      <button class="icon-btn" id="soundBtn" type="button" aria-label="Звук включён">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 9.5v5h3.2L12 18V6L7.2 9.5H4z"/>
+          <path class="waves" d="M15.6 9a4.2 4.2 0 0 1 0 6"/>
+          <path class="waves" d="M18.2 6.5a8 8 0 0 1 0 11"/>
+          <path class="slash" d="M16 9.5l5 5M21 9.5l-5 5"/>
+        </svg>
+      </button>
+      <div class="moves">
+        <b id="moves">0</b>
+        <span>ходов</span>
+      </div>
     </div>
   </header>
 
@@ -35,17 +45,33 @@
   </main>
 
   <footer class="actions">
+    <button id="hint" class="btn" type="button">Подсказка</button>
     <button id="undo" class="btn" type="button" disabled>Отменить</button>
     <button id="restart" class="btn" type="button">Заново</button>
   </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <div id="win" class="win hidden" aria-hidden="true">
     <div class="win-card">
       <div class="win-emoji">✨</div>
       <div class="win-title" id="winTitle">Уровень пройден</div>
-      <div class="win-sub">ходов: <span id="winMoves">0</span></div>
+      <div class="win-sub">ходов: <span id="winMoves">0</span> · лучший: <span id="winBest">—</span></div>
+      <div class="win-record hidden" id="winRecord">Новый рекорд!</div>
       <button id="next" class="btn primary" type="button">Следующий уровень</button>
       <button id="again" class="btn ghost" type="button">Повторить</button>
+    </div>
+  </div>
+
+  <div id="levels" class="levels hidden" aria-hidden="true">
+    <div class="levels-card">
+      <div class="levels-head">
+        <div class="levels-title">Уровни</div>
+        <button id="levelsClose" class="close" type="button" aria-label="Закрыть">×</button>
+      </div>
+      <div class="levels-summary" id="levelsSummary"></div>
+      <div class="levels-grid" id="levelsGrid"></div>
+      <button id="levelsContinue" class="btn primary" type="button">Продолжить</button>
     </div>
   </div>
 </div>
