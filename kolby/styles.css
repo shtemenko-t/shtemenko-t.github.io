@@ -890,3 +890,63 @@ button {
   letter-spacing: 0.03em;
   color: rgba(139, 147, 181, 0.65);
 }
+/* ================= версия 8: струя дугой (SVG) ================= */
+
+.stream-svg {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 15;
+  overflow: visible;
+  opacity: 1;
+  transition: opacity 0.24s ease;
+}
+
+.stream-svg.fade {
+  opacity: 0;
+}
+
+.stream-path {
+  filter: blur(0.25px);
+}
+
+.stream-shine {
+  opacity: 0.75;
+}
+/* ================= версия 9: лаборатория ================= */
+
+.lab-label {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.lab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lab-btn {
+  flex: 1 1 0;
+  min-width: 74px;
+  padding: 12px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.lab-btn.active {
+  border-color: rgba(126, 231, 199, 0.8);
+  background: rgba(126, 231, 199, 0.16);
+  color: #c7fbe9;
+}
+
+.lab-btn:active {
+  transform: scale(0.98);
+}

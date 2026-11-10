@@ -7,7 +7,7 @@
   var STORAGE_KEY = 'kolby.state.v1';
   var SETTINGS_KEY = 'kolby.settings.v1';
   var SOUND_RATE = 22050;
-  var APP_VERSION = 7;
+  var APP_VERSION = 9;
 
   /* ---------- активная доска ---------- */
 
@@ -41,6 +41,8 @@
   var locked = false;
   var flaskEls = [];
   var soundOn = true;
+  var streamStyle = 1;
+  var soundPreset = 1;
   var hintTimer = 0;
   var toastTimer = 0;
   var winAction = null;
@@ -229,53 +231,74 @@
 
   /* Вода: шум через два фильтра плюс пузырьки — так переливание звучит
      как настоящая жидкость, а не как сигнал. */
-  function waterPour(seed) {
+  /* Журчание: только шумовые слои и медленная пульсация.
+     Никаких чистых тонов — именно они звучали как металл. */
+  /* Характеры звука воды. Номер выбирается в лаборатории. */
+  var POUR_PRESETS = {
+    1: { low: 1.7, mid: 0.8, gurgle: 1, bubbles: 0, plop: 0 },
+    2: { low: 2.3, mid: 0.28, gurgle: 1, bubbles: 0, plop: 0 },
+    3: { low: 1.6, mid: 0.65, gurgle: 1, bubbles: 1, plop: 0 },
+    4: { low: 0.9, mid: 1.15, gurgle: 1, bubbles: 0, plop: 1 }
+  };
+
+  function waterPour(seed, preset) {
     var rnd = E.mulberry32(seed);
-    var dur = 0.5;
+    var cfg = POUR_PRESETS[preset] || POUR_PRESETS[1];
+    var dur = 0.55;
+    var lp1 = 0;
+    var lp2 = 0;
+    var bp = 0;
     var bubbles = [];
-    var at = 0.015;
-    while (at < dur - 0.06) {
-      bubbles.push({
-        at: at,
-        f: 380 + rnd() * 950,
-        len: 0.025 + rnd() * 0.05,
-        amp: 0.12 + rnd() * 0.24
-      });
-      at += 0.025 + rnd() * 0.06;
+    if (cfg.bubbles) {
+      var at = 0.03;
+      while (at < dur - 0.08) {
+        bubbles.push({
+          at: at,
+          f: 110 + rnd() * 130,
+          len: 0.06 + rnd() * 0.07,
+          amp: 0.10 + rnd() * 0.12
+        });
+        at += 0.06 + rnd() * 0.08;
+      }
     }
-    var lp = 0;
-    var hp = 0;
     return synth(dur, function (time) {
       var k = time / dur;
-      var env = Math.min(1, time / 0.02) * Math.pow(1 - k, 1.15);
+      var env = Math.min(1, time / 0.05) * Math.pow(1 - k, 0.8);
       var white = rnd() * 2 - 1;
-      lp += (white - lp) * 0.14;
-      hp += (white - lp) * 0.5;
-      var sum = lp * 1.5 + hp * 0.55;
+      lp1 += (white - lp1) * 0.045;
+      lp2 += (white - lp2) * 0.24;
+      var gurgle = 0.6 + 0.4 * Math.sin(2 * Math.PI * 3.1 * time + Math.sin(2 * Math.PI * 0.8 * time));
+      var body = lp1 * cfg.low + (lp2 - lp1) * cfg.mid * (cfg.gurgle ? gurgle : 1);
       for (var i = 0; i < bubbles.length; i++) {
         var b = bubbles[i];
         var local = time - b.at;
         if (local >= 0 && local <= b.len) {
           var e = Math.sin(Math.PI * (local / b.len));
-          sum += Math.sin(2 * Math.PI * b.f * local) * b.amp * e * e;
+          body += Math.sin(2 * Math.PI * b.f * local * (1 - 0.3 * local / b.len)) * b.amp * e * e;
         }
       }
-      return sum * env * 0.8;
+      if (cfg.plop) {
+        bp += (white - lp1 - bp) * 0.35;
+        body += bp * 0.5;
+      }
+      return body * env;
     });
   }
 
   function waterSplash(seed) {
     var rnd = E.mulberry32(seed);
-    var dur = 0.22;
+    var dur = 0.3;
     var lp = 0;
+    var low = 0;
     return synth(dur, function (time) {
       var k = time / dur;
-      var env = Math.exp(-6 * k);
+      var env = Math.exp(-5 * k);
       var white = rnd() * 2 - 1;
-      lp += (white - lp) * 0.3;
-      var body = (white - lp) * 0.5;
-      var plop = Math.sin(2 * Math.PI * (700 - 380 * k) * time) * 0.35;
-      return (body + plop) * env;
+      lp += (white - lp) * 0.32;
+      low += (white - low) * 0.045;
+      var splatter = (lp - low) * 0.85;
+      var plop = Math.sin(2 * Math.PI * (280 - 110 * k) * time) * 0.16 * Math.exp(-10 * k);
+      return (splatter + plop) * env;
     });
   }
 
@@ -287,9 +310,10 @@
           var k = t / 0.08;
           return Math.sin(2 * Math.PI * (430 - 120 * k) * t) * 0.5 * Math.pow(1 - k, 1.4);
         })),
-        pour0: makeEntry(waterPour(1013)),
-        pour1: makeEntry(waterPour(2027)),
-        pour2: makeEntry(waterPour(3041)),
+        pour0: makeEntry(waterPour(1013, 1)),
+        pour1: makeEntry(waterPour(2027, 2)),
+        pour2: makeEntry(waterPour(3041, 3)),
+        pour3: makeEntry(waterPour(4057, 4)),
         splash: makeEntry(waterSplash(4051)),
         win: makeEntry(synth(0.6, function (t) {
           var notes = [[0, 523], [0.12, 659], [0.24, 784], [0.36, 1046]];
@@ -420,9 +444,8 @@
     if (!soundOn) return;
     unlockAudio();
     unlockFiles();
-    var variants = ['pour0', 'pour1', 'pour2'];
-    var name = variants[Math.floor(Math.random() * variants.length)];
-    var rate = 0.92 + Math.random() * 0.16;
+    var name = 'pour' + (soundPreset - 1);
+    var rate = 0.94 + Math.random() * 0.12;
     if (!playFile(name, rate)) tone('sine', 320, 170, 0.12, 0, 0.2);
     setTimeout(function () {
       if (soundOn) playFile('splash', 0.95 + Math.random() * 0.1);
@@ -459,6 +482,41 @@
     unlockAudio();
     unlockFiles();
     if (soundOn) playFile('test');
+  }
+
+  var LAB_SOUNDS = ['pour0', 'pour1', 'pour2', 'pour3'];
+
+  function buildLab() {
+    if (!els.labSounds) return;
+    els.labSounds.innerHTML = '';
+    for (var s = 1; s <= 4; s++) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'lab-btn' + (s === soundPreset ? ' active' : '');
+      b.dataset.preset = String(s);
+      b.textContent = 'Звук ' + s;
+      els.labSounds.appendChild(b);
+    }
+    els.labStreams.innerHTML = '';
+    for (var t = 1; t <= 3; t++) {
+      var sb = document.createElement('button');
+      sb.type = 'button';
+      sb.className = 'lab-btn' + (t === streamStyle ? ' active' : '');
+      sb.dataset.style = String(t);
+      sb.textContent = 'Струя ' + t;
+      els.labStreams.appendChild(sb);
+    }
+  }
+
+  function openLab() {
+    buildLab();
+    els.lab.classList.remove('hidden');
+    els.lab.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeLab() {
+    els.lab.classList.add('hidden');
+    els.lab.setAttribute('aria-hidden', 'true');
   }
 
   function checkSound() {
@@ -563,6 +621,8 @@
       if (!raw) return;
       var data = JSON.parse(raw);
       soundOn = !data || data.sound !== false;
+      if (data && typeof data.streamStyle === 'number') streamStyle = data.streamStyle;
+      if (data && typeof data.soundPreset === 'number') soundPreset = data.soundPreset;
     } catch (e) {
       soundOn = true;
     }
@@ -570,7 +630,11 @@
 
   function saveSettings() {
     try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ sound: soundOn }));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        sound: soundOn,
+        streamStyle: streamStyle,
+        soundPreset: soundPreset
+      }));
     } catch (e) {
       /* настройка просто не запомнится */
     }
@@ -934,7 +998,8 @@
     }
   }
 
-  /* Струя идёт от горлышка наклонённой колбы к горлышку приёмника. */
+  /* Струя льётся дугой: выходит из горлышка наклонённой колбы и падает
+     в горлышко приёмника, как настоящая жидкость. */
   function spawnStream(srcEl, dstEl, color, dir) {
     if (!srcEl || !dstEl) return;
     var a = srcEl.getBoundingClientRect();
@@ -943,46 +1008,90 @@
     var theta = (dir > 0 ? 26 : -26) * Math.PI / 180;
     var cx = a.left + a.width / 2;
     var bottom = a.top + a.height;
-    var edge = (dir > 0 ? 1 : -1) * a.width / 2 * 0.92;
+    var edge = (dir > 0 ? 1 : -1) * a.width / 2 * 0.9;
     var x0 = cx + edge * Math.cos(theta) + a.height * Math.sin(theta);
-    var y0 = bottom + edge * Math.sin(theta) - a.height * Math.cos(theta) + 6;
+    var y0 = bottom + edge * Math.sin(theta) - a.height * Math.cos(theta) + 8;
 
     var x1 = b.left + b.width / 2;
     var y1 = b.top + Math.min(10, b.height * 0.08);
 
-    var dx = x1 - x0;
-    var dy = y1 - y0;
-    var len = Math.max(14, Math.sqrt(dx * dx + dy * dy));
-    var rot = Math.atan2(dy, dx) * 180 / Math.PI;
+    var style = streamStyle;
+    /* у горлышка струя идёт почти горизонтально, дальше падает вниз */
+    var cpx = x0 + (x1 - x0) * (style === 2 ? 0.9 : 0.72);
+    var cpy = y0 + Math.max(style === 2 ? 4 : 12, (y1 - y0) * (style === 2 ? 0.06 : 0.18));
+    var d = 'M ' + x0.toFixed(1) + ' ' + y0.toFixed(1) +
+      ' Q ' + cpx.toFixed(1) + ' ' + cpy.toFixed(1) +
+      ' ' + x1.toFixed(1) + ' ' + y1.toFixed(1);
 
-    var stream = document.createElement('div');
-    stream.className = 'stream';
-    stream.style.left = x0 + 'px';
-    stream.style.top = (y0 - 3) + 'px';
-    stream.style.width = len.toFixed(1) + 'px';
-    stream.style.setProperty('--rot', rot.toFixed(1) + 'deg');
-    stream.style.background = 'linear-gradient(90deg, ' + tint(color, 0.55) + ', ' +
-      color + ' 60%, ' + tint(color, -0.05) + ')';
-    document.body.appendChild(stream);
-    setTimeout(function () {
-      if (stream.parentNode) stream.parentNode.removeChild(stream);
-    }, 520);
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'stream-svg');
+    svg.setAttribute('viewBox', '0 0 ' + window.innerWidth + ' ' + window.innerHeight);
 
-    for (var i = 0; i < 3; i++) {
-      var t = 0.4 + i * 0.2;
-      var drop = document.createElement('div');
-      drop.className = 'drop';
-      drop.style.left = (x0 + dx * t - 2) + 'px';
-      drop.style.top = (y0 + dy * t) + 'px';
-      drop.style.background = tint(color, 0.35);
-      drop.style.animationDelay = (i * 0.05).toFixed(2) + 's';
-      document.body.appendChild(drop);
-      (function (el) {
-        setTimeout(function () {
-          if (el.parentNode) el.parentNode.removeChild(el);
-        }, 560);
-      }(drop));
+    var main = null;
+    var shine = null;
+    if (style !== 3) {
+      main = document.createElementNS(ns, 'path');
+      main.setAttribute('d', d);
+      main.setAttribute('fill', 'none');
+      main.setAttribute('stroke', color);
+      main.setAttribute('stroke-width', style === 2 ? '10' : '5');
+      main.setAttribute('stroke-linecap', 'round');
+      main.setAttribute('class', 'stream-path');
+      svg.appendChild(main);
+
+      shine = document.createElementNS(ns, 'path');
+      shine.setAttribute('d', d);
+      shine.setAttribute('fill', 'none');
+      shine.setAttribute('stroke', tint(color, 0.65));
+      shine.setAttribute('stroke-width', style === 2 ? '3' : '1.7');
+      shine.setAttribute('stroke-linecap', 'round');
+      shine.setAttribute('class', 'stream-shine');
+      svg.appendChild(shine);
     }
+
+    var dropCount = style === 1 ? 3 : (style === 2 ? 2 : 6);
+    for (var i = 0; i < dropCount; i++) {
+      var dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('r', (style === 3 ? 3.2 - i * 0.2 : 2.4 - i * 0.3).toFixed(1));
+      dot.setAttribute('fill', tint(color, 0.4));
+      var motion = document.createElementNS(ns, 'animateMotion');
+      motion.setAttribute('dur', '0.42s');
+      motion.setAttribute('begin', (0.05 * i).toFixed(2) + 's');
+      motion.setAttribute('fill', 'freeze');
+      motion.setAttribute('path', d);
+      dot.appendChild(motion);
+      svg.appendChild(dot);
+    }
+
+    document.body.appendChild(svg);
+
+    if (main && shine) {
+      var len = 120;
+      try {
+        len = main.getTotalLength();
+      } catch (e) {
+        len = 120;
+      }
+      main.style.strokeDasharray = len;
+      main.style.strokeDashoffset = len;
+      shine.style.strokeDasharray = len;
+      shine.style.strokeDashoffset = len;
+
+      setTimeout(function () {
+        main.style.transition = 'stroke-dashoffset 0.15s linear';
+        shine.style.transition = 'stroke-dashoffset 0.15s linear';
+        main.style.strokeDashoffset = '0';
+        shine.style.strokeDashoffset = '0';
+      }, 10);
+    }
+
+    setTimeout(function () {
+      svg.classList.add('fade');
+    }, 340);
+    setTimeout(function () {
+      if (svg.parentNode) svg.parentNode.removeChild(svg);
+    }, 600);
 
     var splash = document.createElement('div');
     splash.className = 'splash';
@@ -1343,6 +1452,12 @@
     els.dailyCard = $('dailyCard');
     els.dailySub = $('dailySub');
     els.soundTest = $('soundTest');
+    els.labBtn = $('labBtn');
+    els.lab = $('lab');
+    els.labSounds = $('labSounds');
+    els.labStreams = $('labStreams');
+    els.labClose = $('labClose');
+    els.labDone = $('labDone');
     els.appVersion = $('appVersion');
     if (els.appVersion) els.appVersion.textContent = 'версия ' + APP_VERSION;
 
@@ -1392,6 +1507,39 @@
       if (e.target === els.levels) closeLevels();
     });
     if (els.soundTest) els.soundTest.addEventListener('click', checkSound);
+    if (els.labBtn) {
+      els.labBtn.addEventListener('click', function () {
+        closeLevels();
+        openLab();
+      });
+      els.labClose.addEventListener('click', closeLab);
+      els.labDone.addEventListener('click', closeLab);
+      els.labSounds.addEventListener('click', function (e) {
+        var btn = e.target;
+        while (btn && btn !== els.labSounds && !btn.classList.contains('lab-btn')) btn = btn.parentNode;
+        if (!btn || !btn.dataset || !btn.dataset.preset) return;
+        soundPreset = parseInt(btn.dataset.preset, 10);
+        if (!soundOn) {
+          soundOn = true;
+          updateSoundBtn();
+        }
+        saveSettings();
+        buildLab();
+        unlockAudio();
+        unlockFiles();
+        playFile(LAB_SOUNDS[soundPreset - 1], 1);
+      });
+      els.labStreams.addEventListener('click', function (e) {
+        var btn = e.target;
+        while (btn && btn !== els.labStreams && !btn.classList.contains('lab-btn')) btn = btn.parentNode;
+        if (!btn || !btn.dataset || !btn.dataset.style) return;
+        streamStyle = parseInt(btn.dataset.style, 10);
+        saveSettings();
+        buildLab();
+        closeLab();
+        toast('Струя ' + streamStyle + ': перелей жидкость на доске');
+      });
+    }
     els.levelsGrid.addEventListener('click', function (e) {
       var cell = e.target;
       while (cell && cell !== els.levelsGrid && !cell.classList.contains('level-cell')) {
