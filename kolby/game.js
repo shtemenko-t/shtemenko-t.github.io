@@ -201,12 +201,27 @@
     }
   }
 
-  function tone(type, f0, f1, vol, delay, dur) {
-    if (!soundOn) return;
-    var ctx = ensureAudio();
-    if (!ctx) return;
+  /* Пока звук заблокирован браузером, ждём разрешения и только потом играем:
+     иначе на iPhone первый звук уходит «в пустоту». */
+  function whenReady(ctx, run) {
+    if (ctx.state === 'running') {
+      run();
+      return;
+    }
     try {
-      if (ctx.state === 'suspended') ctx.resume();
+      var p = ctx.resume();
+      if (p && typeof p.then === 'function') {
+        p.then(run).catch(function () { run(); });
+      } else {
+        run();
+      }
+    } catch (e) {
+      run();
+    }
+  }
+
+  function playTone(ctx, type, f0, f1, vol, delay, dur) {
+    try {
       var t = ctx.currentTime + (delay || 0);
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
@@ -225,12 +240,17 @@
     }
   }
 
-  function splash(vol, delay) {
+  function tone(type, f0, f1, vol, delay, dur) {
     if (!soundOn) return;
     var ctx = ensureAudio();
     if (!ctx) return;
+    whenReady(ctx, function () {
+      playTone(ctx, type, f0, f1, vol, delay, dur);
+    });
+  }
+
+  function playSplash(ctx, vol, delay) {
     try {
-      if (ctx.state === 'suspended') ctx.resume();
       var t = ctx.currentTime + (delay || 0);
       var len = Math.floor(ctx.sampleRate * 0.12);
       var buffer = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -253,6 +273,15 @@
     } catch (e) {
       /* не страшно */
     }
+  }
+
+  function splash(vol, delay) {
+    if (!soundOn) return;
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    whenReady(ctx, function () {
+      playSplash(ctx, vol, delay);
+    });
   }
 
   function soundSelect() {
@@ -944,7 +973,7 @@
     loadSettings();
     updateSoundBtn();
 
-    ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) {
+    ['pointerdown', 'touchstart', 'click', 'keydown'].forEach(function (ev) {
       document.addEventListener(ev, unlockAudio, { once: true, capture: true, passive: true });
     });
 
