@@ -1,0 +1,305 @@
+:root {
+  --bg-0: #070a14;
+  --bg-1: #0b1020;
+  --bg-2: #1b2444;
+  --text: #eef2ff;
+  --muted: #8b93b5;
+  --accent: #7ee7c7;
+
+  --flask-w: 44px;
+  --flask-h: 141px;
+  --flask-gap: 12px;
+  --row-gap: 20px;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-0);
+}
+
+body {
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 10px)
+    calc(env(safe-area-inset-right, 0px) + 14px)
+    calc(env(safe-area-inset-bottom, 0px) + 12px)
+    calc(env(safe-area-inset-left, 0px) + 14px);
+  background: radial-gradient(120% 75% at 50% -10%, var(--bg-2) 0%, var(--bg-1) 45%, var(--bg-0) 100%);
+}
+
+/* ---------- шапка ---------- */
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+}
+
+.level {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.level-sub {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.moves {
+  text-align: right;
+  line-height: 1.1;
+}
+
+.moves b {
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.moves span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* ---------- доска ---------- */
+
+#board {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 6px 0;
+}
+
+.flasks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  align-content: center;
+  justify-content: center;
+  gap: var(--row-gap) var(--flask-gap);
+  max-width: 100%;
+}
+
+.flask {
+  position: relative;
+  width: var(--flask-w);
+  height: var(--flask-h);
+  transition: transform 0.16s ease, filter 0.16s ease;
+  will-change: transform;
+}
+
+.flask .glass {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9px 9px 46% 46% / 9px 9px 20% 20%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015));
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 18px rgba(255, 255, 255, 0.06),
+    0 10px 20px rgba(0, 0, 0, 0.35);
+}
+
+.flask .body {
+  position: absolute;
+  inset: 3px;
+  display: flex;
+  flex-direction: column-reverse;
+  border-radius: 7px 7px 42% 42% / 7px 7px 18% 18%;
+  overflow: hidden;
+}
+
+.liquid {
+  width: 100%;
+  height: 25%;
+  flex: 0 0 25%;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+}
+
+.liquid:first-child {
+  border-radius: 0 0 42% 42% / 0 0 18% 18%;
+}
+
+.liquid.in {
+  animation: fill 0.24s ease-out;
+}
+
+@keyframes fill {
+  from {
+    transform: translateY(-55%);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.flask.selected {
+  transform: translateY(-10px);
+}
+
+.flask.selected .glass {
+  border-color: rgba(126, 231, 199, 0.8);
+  box-shadow:
+    0 0 0 2px rgba(126, 231, 199, 0.22),
+    0 12px 26px rgba(0, 0, 0, 0.42);
+}
+
+.flask.pouring {
+  transition: transform 0.17s ease-in;
+  transform: rotate(var(--tilt, 28deg)) translateY(-8px);
+  transform-origin: 50% 92%;
+  z-index: 5;
+}
+
+.flask.receive .glass {
+  border-color: rgba(126, 231, 199, 0.45);
+}
+
+.flask.shake {
+  animation: shake 0.34s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+}
+
+/* ---------- кнопки ---------- */
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.btn {
+  min-width: 128px;
+  padding: 13px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
+  cursor: pointer;
+}
+
+.btn:active {
+  transform: scale(0.97);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.btn:disabled {
+  opacity: 0.32;
+  pointer-events: none;
+}
+
+.btn.primary {
+  background: linear-gradient(180deg, #8bf0d2, #5fd9b6);
+  border: none;
+  color: #06231b;
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+}
+
+/* ---------- окно победы ---------- */
+
+.win {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 7, 16, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition: opacity 0.2s ease;
+}
+
+.win.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.win-card {
+  width: min(86vw, 320px);
+  padding: 26px 22px 20px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, #1a2342, #131a30);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.win-emoji {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.win-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.win-sub {
+  font-size: 15px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flask,
+  .liquid,
+  .win {
+    transition: none !important;
+    animation: none !important;
+  }
+}
