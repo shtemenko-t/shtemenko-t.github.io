@@ -1,7 +1,7 @@
 /* Колбы — движок уровней.
    Работает и в браузере (window.KolbyEngine), и в Node (module.exports).
-   Правила: 4 слоя в колбе, переливать можно только верхний цвет,
-   в пустую колбу или в колбу с тем же верхним цветом. */
+   Правила: переливать можно только верхний цвет, в пустую колбу или в колбу
+   с тем же верхним цветом. Обычная колба держит 4 слоя, большая — 6. */
 
 (function (root, factory) {
   'use strict';
@@ -14,9 +14,8 @@
   'use strict';
 
   var CAP = 4;
+  var BIG_CAP = 6;
 
-  /* Порядок палитры: первые цвета максимально далеко друг от друга по тону,
-     поэтому лёгкие уровни выглядят наглядно. */
   var PALETTE = [
     '#ef4444', // красный
     '#3b82f6', // синий
@@ -66,6 +65,10 @@
     return out;
   }
 
+  function capOf(caps, i) {
+    return caps && typeof caps[i] === 'number' ? caps[i] : CAP;
+  }
+
   function topRun(flask) {
     if (!flask.length) return 0;
     var c = flask[flask.length - 1];
@@ -81,11 +84,11 @@
     return flask.length > 0;
   }
 
-  function isSolved(state) {
+  function isSolved(state, caps) {
     for (var i = 0; i < state.length; i++) {
       var f = state[i];
       if (f.length === 0) continue;
-      if (f.length !== CAP) return false;
+      if (f.length !== capOf(caps, i)) return false;
       for (var j = 1; j < f.length; j++) {
         if (f[j] !== f[0]) return false;
       }
@@ -93,21 +96,22 @@
     return true;
   }
 
-  function canPour(state, i, j) {
+  function canPour(state, i, j, caps) {
     if (i === j) return 0;
     var src = state[i];
     var dst = state[j];
     if (!src || !dst) return 0;
     if (!src.length) return 0;
-    if (dst.length >= CAP) return 0;
+    var dstCap = capOf(caps, j);
+    if (dst.length >= dstCap) return 0;
     var c = src[src.length - 1];
     if (dst.length && dst[dst.length - 1] !== c) return 0;
-    return Math.min(CAP - dst.length, topRun(src));
+    return Math.min(dstCap - dst.length, topRun(src));
   }
 
   /* Переливает и возвращает число перелитых слоёв (0 — ход невозможен). */
-  function pour(state, i, j) {
-    var n = canPour(state, i, j);
+  function pour(state, i, j, caps) {
+    var n = canPour(state, i, j, caps);
     if (!n) return 0;
     var src = state[i];
     var dst = state[j];
@@ -115,15 +119,14 @@
     return n;
   }
 
-  function legalMoves(state) {
+  function legalMoves(state, caps) {
     var moves = [];
     for (var i = 0; i < state.length; i++) {
       if (!state[i].length) continue;
       for (var j = 0; j < state.length; j++) {
         if (i === j) continue;
-        var n = canPour(state, i, j);
+        var n = canPour(state, i, j, caps);
         if (!n) continue;
-        /* переливание одноцветной колбы в пустую ничего не меняет по сути */
         if (!state[j].length && isUniform(state[i])) continue;
         moves.push([i, j, n]);
       }
@@ -138,12 +141,11 @@
     return parts.join('|');
   }
 
-  /* Поиск решения в глубину с отсечением повторов и разумным порядком ходов.
-     Возвращает массив ходов [[from, to], ...] или null. */
-  function solve(state, budget) {
+  /* Поиск решения в глубину: отсечение повторов и разумный порядок ходов. */
+  function solve(state, budget, caps) {
     var limit = budget || 60000;
     var start = clone(state);
-    if (isSolved(start)) return [];
+    if (isSolved(start, caps)) return [];
     var seen = Object.create(null);
     var path = [];
     var nodes = 0;
@@ -154,15 +156,16 @@
         if (!st[i].length) continue;
         for (var j = 0; j < st.length; j++) {
           if (i === j) continue;
-          var n = canPour(st, i, j);
+          var n = canPour(st, i, j, caps);
           if (!n) continue;
           if (!st[j].length && isUniform(st[i])) continue;
           var s = 0;
           var src = st[i];
           var dst = st[j];
           var c = src[src.length - 1];
+          var dstCap = capOf(caps, j);
           if (!dst.length) s -= 4;
-          if (dst.length + n === CAP && (dst.length === 0 || dst[dst.length - 1] === c)) s += 20;
+          if (dst.length + n === dstCap && (dst.length === 0 || dst[dst.length - 1] === c)) s += 20;
           if (src.length === n) s += 5;
           moves.push([i, j, s]);
         }
@@ -181,9 +184,9 @@
       for (var m = 0; m < moves.length; m++) {
         var i = moves[m][0];
         var j = moves[m][1];
-        var cnt = pour(st, i, j);
+        var cnt = pour(st, i, j, caps);
         path.push([i, j]);
-        if (isSolved(st)) return path.slice();
+        if (isSolved(st, caps)) return path.slice();
         var res = dfs(st);
         if (res) return res;
         path.pop();
@@ -195,14 +198,16 @@
     return dfs(start);
   }
 
-  /* Сколько колб с цветами, сколько пустых, сколько уровней впереди. */
   function levelConfig(level) {
     var lv = Math.max(1, Math.floor(level) || 1);
     var colors = 3 + Math.floor((lv - 1) / 4);
     if (colors > PALETTE.length) colors = PALETTE.length;
     var empties = 2;
     if (lv >= 45 && lv % 3 === 0) empties = 1;
-    return { colors: colors, empties: empties };
+    /* большая колба появляется на каждом пятом уровне, но только там,
+       где есть две запасные — иначе уровень становится нечестно тяжёлым */
+    var big = (lv >= 10 && lv % 5 === 0 && empties === 2) ? 1 : 0;
+    return { colors: colors, empties: empties, big: big };
   }
 
   function mixedCount(state) {
@@ -223,74 +228,116 @@
     return mixed;
   }
 
-  function randomState(colors, empties, rnd) {
+  function randomState(caps, empties, rnd) {
+    var colored = caps.length - empties;
     var cells = [];
-    for (var c = 0; c < colors; c++) {
-      for (var k = 0; k < CAP; k++) cells.push(c);
+    for (var i = 0; i < colored; i++) {
+      for (var k = 0; k < caps[i]; k++) cells.push(i);
     }
     cells = shuffled(cells, rnd);
-    var state = new Array(colors + empties);
-    for (var i = 0; i < colors; i++) state[i] = cells.slice(i * CAP, (i + 1) * CAP);
-    for (var e = 0; e < empties; e++) state[colors + e] = [];
+    var state = new Array(caps.length);
+    var pos = 0;
+    for (var f = 0; f < caps.length; f++) {
+      if (f < colored) {
+        state[f] = cells.slice(pos, pos + caps[f]);
+        pos += caps[f];
+      } else {
+        state[f] = [];
+      }
+    }
     return state;
   }
 
-  function hasFreeFlask(state) {
+  function hasReadyFlask(state, caps) {
     for (var i = 0; i < state.length; i++) {
-      if (isUniform(state[i]) && state[i].length === CAP) return true;
+      if (isUniform(state[i]) && state[i].length === capOf(caps, i)) return true;
     }
     return false;
   }
 
-  /* Уровень строится детерминированно по номеру: на разных телефонах
-     один и тот же номер даёт одну и ту же доску. */
-  function generate(level, options) {
-    var opts = options || {};
-    var cfg = levelConfig(level);
-    var colors = opts.colors ? Math.max(3, Math.min(PALETTE.length, opts.colors)) : cfg.colors;
-    var empties = typeof opts.empties === 'number'
-      ? Math.max(1, Math.min(3, opts.empties))
-      : cfg.empties;
+  function buildCaps(colors, empties, big) {
+    var caps = new Array(colors + empties);
+    for (var i = 0; i < caps.length; i++) caps[i] = CAP;
+    for (var b = 0; b < big && b < colors; b++) caps[b] = BIG_CAP;
+    return caps;
+  }
+
+  function attemptGenerate(level, colors, empties, big, budget, maxAttempts) {
+    var caps = buildCaps(colors, empties, big);
     var needMixed = Math.max(2, Math.ceil(colors * 0.6));
     var minLen = colors + 2;
-    var budget = opts.budget || 30000;
-    var maxAttempts = opts.attempts || 40;
-    var relaxed = false;
+    var strictAttempts = 10;
+    var started = Date.now();
 
-    for (var attempt = 0; attempt < maxAttempts * 2; attempt++) {
-      if (attempt === maxAttempts) relaxed = true; // вторая половина попыток — мягкие условия
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      /* после десятка строгих попыток или 350 мс поиска условия мягче:
+         генерировать уровень дольше, чем он играется, не нужно */
+      var relaxed = attempt >= strictAttempts || (Date.now() - started) > 350;
       var seed = hash32(Math.imul(level, 7919) + Math.imul(attempt, 104729) + 17);
       var rnd = mulberry32(seed);
-      var state = randomState(colors, empties, rnd);
-      if (isSolved(state)) continue;
-      if (hasFreeFlask(state)) continue;
+      var state = randomState(caps, empties, rnd);
+      if (isSolved(state, caps)) continue;
+      if (hasReadyFlask(state, caps)) continue;
       if (!relaxed && mixedCount(state) < needMixed) continue;
-      var solution = solve(state, budget);
+      var solution = solve(state, budget, caps);
       if (!solution) continue;
       if (!relaxed && solution.length < minLen) continue;
       return {
         level: level,
         colors: colors,
         empties: empties,
+        big: big,
+        caps: caps,
         state: state,
         initial: clone(state),
         solution: solution,
         seed: seed
       };
     }
+    return null;
+  }
 
-    /* Совсем крайний случай: гарантированно решаемая простая доска. */
-    var fallbackColors = Math.max(3, colors - 2);
-    var fallback = randomState(fallbackColors, 2, mulberry32(hash32(Math.imul(level, 31337))));
-    return {
-      level: level,
-      colors: fallbackColors,
-      empties: 2,
-      state: fallback,
-      initial: clone(fallback),
-      solution: solve(fallback, 200000),
-      seed: 0
-    };
+  /* Уровень строится детерминированно по номеру: один и тот же номер даёт
+     одну и ту же доску на любом устройстве. */
+  function generate(level, options) {
+    var opts = options || {};
+    var cfg = levelConfig(level);
+    var colors = opts.colors
+      ? Math.max(3, Math.min(PALETTE.length, opts.colors))
+      : cfg.colors;
+    var empties = typeof opts.empties === 'number'
+      ? Math.max(1, Math.min(3, opts.empties))
+      : cfg.empties;
+    var big = typeof opts.big === 'number' ? Math.max(0, Math.min(2, opts.big)) : cfg.big;
+    var budget = opts.budget || (colors >= 9 ? 35000 : 30000);
+    var attempts = opts.attempts || (colors >= 9 ? (empties < 2 ? 30 : 80) : 30);
+
+    var result = attemptGenerate(level, colors, empties, big, budget, attempts);
+
+    if (!result && empties < 2) {
+      /* самая тяжёлая комбинация — одна запасная колба: добавляем вторую,
+         а цвета и большие колбы оставляем как задумано */
+      result = attemptGenerate(level, colors, 2, big, budget, 60);
+    }
+    if (!result) {
+      result = attemptGenerate(level, Math.max(3, colors - 2), 2, 0, 60000, 40);
+    }
+    if (!result) {
+      var safeCaps = buildCaps(3, 2, 0);
+      var safe = randomState(safeCaps, 2, mulberry32(hash32(Math.imul(level, 31337))));
+      result = {
+        level: level,
+        colors: 3,
+        empties: 2,
+        big: 0,
+        caps: safeCaps,
+        state: safe,
+        initial: clone(safe),
+        solution: solve(safe, 200000, safeCaps),
+        seed: 0
+      };
+    }
+    return result;
   }
 
   function colorFor(colors, index) {
@@ -299,10 +346,12 @@
 
   return {
     CAP: CAP,
+    BIG_CAP: BIG_CAP,
     PALETTE: PALETTE,
     hash32: hash32,
     mulberry32: mulberry32,
     clone: clone,
+    capOf: capOf,
     topRun: topRun,
     isUniform: isUniform,
     isSolved: isSolved,

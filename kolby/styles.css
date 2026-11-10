@@ -658,3 +658,129 @@ button {
   font-size: 12.5px;
   color: rgba(199, 251, 233, 0.85);
 }
+/* ================= версия 5: свет, стекло, конфетти, большая колба ================= */
+
+#app {
+  overflow: hidden;
+}
+
+.glow {
+  position: absolute;
+  inset: -15%;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 35% at 25% 15%, rgba(126, 231, 199, 0.10), transparent 70%),
+    radial-gradient(45% 40% at 78% 85%, rgba(110, 140, 255, 0.12), transparent 70%);
+  animation: drift 22s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1.02); }
+  to { transform: translate3d(2%, 2%, 0) scale(1.08); }
+}
+
+.flask .glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset -5px 0 10px rgba(255, 255, 255, 0.06),
+    inset 5px 0 10px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+
+.liquid {
+  position: relative;
+}
+
+.liquid::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 42%, rgba(0, 0, 0, 0.10));
+  pointer-events: none;
+}
+
+.liquid.mystery {
+  background: linear-gradient(180deg, #2b3457, #1c2440) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.liquid.mystery::after {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 60%);
+}
+
+.flask.big .glass {
+  border-color: rgba(255, 215, 106, 0.42);
+  box-shadow:
+    inset 0 0 22px rgba(255, 215, 106, 0.12),
+    0 12px 24px rgba(0, 0, 0, 0.4);
+}
+
+.flask.selected .glass {
+  animation: selectedGlow 1.8s ease-in-out infinite;
+}
+
+@keyframes selectedGlow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(126, 231, 199, 0.18), 0 12px 26px rgba(0, 0, 0, 0.42); }
+  50% { box-shadow: 0 0 0 4px rgba(126, 231, 199, 0.32), 0 14px 30px rgba(0, 0, 0, 0.46); }
+}
+
+.liquid.out {
+  animation: pourOut 0.19s ease-in forwards;
+}
+
+@keyframes pourOut {
+  from { transform: none; opacity: 1; }
+  to { transform: translateY(-40%) scaleY(0.55); opacity: 0; }
+}
+
+.liquid.in {
+  animation: fill 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.stars span.on {
+  animation: starPop 0.42s cubic-bezier(0.2, 1.7, 0.4, 1) both;
+}
+
+.stars span.off {
+  opacity: 0.5;
+}
+
+@keyframes starPop {
+  from { transform: scale(0.2) rotate(-25deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.confetti {
+  position: fixed;
+  top: -16px;
+  z-index: 18;
+  border-radius: 2px;
+  pointer-events: none;
+  animation: confettiFall 1.4s ease-in forwards;
+}
+
+@keyframes confettiFall {
+  from { transform: translateY(0) rotate(0); opacity: 1; }
+  to { transform: translateY(102vh) rotate(540deg); opacity: 0.9; }
+}
+
+.link-btn {
+  align-self: center;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 12.5px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

@@ -6,6 +6,7 @@
   var E = window.KolbyEngine;
   var STORAGE_KEY = 'kolby.state.v1';
   var SETTINGS_KEY = 'kolby.settings.v1';
+  var SOUND_RATE = 22050;
 
   /* ---------- активная доска ---------- */
 
@@ -14,12 +15,17 @@
 
   var colors = 3;
   var empties = 2;
+  var caps = [];
   var flasks = [];
   var initial = [];
   var undoStack = [];
   var moves = 0;
   var par = null;
   var extraUsed = false;
+
+  var hidden = [];
+  var revealed = [];
+  var mysteryShown = false;
 
   var campaignStash = null;
   var dailyData = null;
@@ -81,8 +87,315 @@
     return {
       level: 200000 + Number(key.replace(/-/g, '')),
       colors: 6 + (date.getDay() % 5),
-      empties: 2
+      empties: 2,
+      big: date.getDay() % 3 === 0 ? 1 : 0
     };
+  }
+
+  /* ---------- закрытые цвета ---------- */
+
+  function pickHidden(seedNumber, colorsCount) {
+    var count = colorsCount >= 10 ? 2 : (colorsCount >= 5 ? 1 : 0);
+    if (count <= 0) return [];
+    var rnd = E.mulberry32(E.hash32(seedNumber | 0));
+    var pool = [];
+    for (var i = 0; i < colorsCount; i++) pool.push(i);
+    var out = [];
+    for (var k = 0; k < count && pool.length; k++) {
+      out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+    }
+    return out;
+  }
+
+  function isHiddenColor(c) {
+    return hidden.indexOf(c) !== -1 && revealed.indexOf(c) === -1;
+  }
+
+  function revealTop(i) {
+    if (!flasks[i] || !flasks[i].length) return false;
+    var c = flasks[i][flasks[i].length - 1];
+    if (hidden.indexOf(c) === -1) return false;
+    if (revealed.indexOf(c) !== -1) return false;
+    revealed.push(c);
+    return true;
+  }
+
+  /* ---------- звук ---------- */
+
+  var audio = null;
+  var soundFiles = null;
+  var fileUnlocked = false;
+
+  function ensureAudio() {
+    if (audio) return audio;
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      audio = new Ctx();
+    } catch (e) {
+      audio = null;
+    }
+    return audio;
+  }
+
+  function unlockAudio() {
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    try {
+      if (ctx.state === 'suspended') ctx.resume();
+      var buf = ctx.createBuffer(1, 1, 22050);
+      var src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+    } catch (e) {
+      /* не страшно */
+    }
+  }
+
+  /* Звуки храним как крошечные wav-файлы, собранные на месте:
+     проигрывание файла на iPhone надёжнее, чем Web Audio. */
+  function encodeWav(data) {
+    var n = data.length;
+    var buffer = new ArrayBuffer(44 + n * 2);
+    var view = new DataView(buffer);
+    function str(off, s) {
+      for (var i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+    }
+    str(0, 'RIFF');
+    view.setUint32(4, 36 + n * 2, true);
+    str(8, 'WAVE');
+    str(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, SOUND_RATE, true);
+    view.setUint32(28, SOUND_RATE * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    str(36, 'data');
+    view.setUint32(40, n * 2, true);
+    var off = 44;
+    for (var i = 0; i < n; i++) {
+      var s = Math.max(-1, Math.min(1, data[i]));
+      view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      off += 2;
+    }
+    var bytes = new Uint8Array(buffer);
+    var binary = '';
+    var chunk = 0x8000;
+    for (var b = 0; b < bytes.length; b += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(b, b + chunk));
+    }
+    return 'data:audio/wav;base64,' + window.btoa(binary);
+  }
+
+  function synth(dur, fn) {
+    var n = Math.floor(SOUND_RATE * dur);
+    var data = new Float32Array(n);
+    for (var i = 0; i < n; i++) data[i] = fn(i / SOUND_RATE, i, n);
+    return encodeWav(data);
+  }
+
+  function buildSounds() {
+    if (soundFiles) return soundFiles;
+    try {
+      soundFiles = {
+        pick: makeEntry(synth(0.08, function (t) {
+          var k = t / 0.08;
+          return Math.sin(2 * Math.PI * (430 - 120 * k) * t) * 0.5 * Math.pow(1 - k, 1.4);
+        })),
+        pour: makeEntry(synth(0.26, function (t) {
+          var k = t / 0.26;
+          var env = Math.pow(1 - k, 1.6);
+          var tone = Math.sin(2 * Math.PI * (330 - 170 * k) * t) * 0.5;
+          var noise = (Math.random() * 2 - 1) * 0.16 * Math.pow(1 - k, 3);
+          return (tone + noise) * env * 0.8;
+        })),
+        win: makeEntry(synth(0.6, function (t) {
+          var notes = [[0, 523], [0.12, 659], [0.24, 784], [0.36, 1046]];
+          var sum = 0;
+          for (var i = 0; i < notes.length; i++) {
+            var start = notes[i][0];
+            if (t >= start) {
+              var local = t - start;
+              var env = Math.pow(1 - local / 0.24, 2);
+              if (env > 0) sum += Math.sin(2 * Math.PI * notes[i][1] * local) * 0.35 * env;
+            }
+          }
+          return sum;
+        })),
+        test: makeEntry(synth(0.7, function (t) {
+          var notes = [[0, 660], [0.28, 990]];
+          var sum = 0;
+          for (var i = 0; i < notes.length; i++) {
+            if (t >= notes[i][0]) {
+              var local = t - notes[i][0];
+              var env = Math.pow(1 - local / 0.36, 2);
+              if (env > 0) sum += Math.sin(2 * Math.PI * notes[i][1] * local) * 0.45 * env;
+            }
+          }
+          return sum;
+        })),
+        extra: makeEntry(synth(0.3, function (t) {
+          var k = t / 0.3;
+          return Math.sin(2 * Math.PI * (250 + 320 * k) * t) * 0.45 * Math.pow(1 - k, 1.5);
+        }))
+      };
+    } catch (e) {
+      soundFiles = null;
+    }
+    return soundFiles;
+  }
+
+  function makeEntry(uri) {
+    var list = [];
+    for (var i = 0; i < 3; i++) {
+      var a = new Audio();
+      a.src = uri;
+      a.preload = 'auto';
+      list.push(a);
+    }
+    return { uri: uri, list: list, idx: 0 };
+  }
+
+  function unlockFiles() {
+    if (fileUnlocked) return;
+    var files = buildSounds();
+    if (!files) return;
+    try {
+      var a = files.pick.list[0];
+      a.volume = 0;
+      var p = a.play();
+      if (p && p.then) {
+        p.then(function () {
+          a.pause();
+          a.volume = 1;
+        }).catch(function () {
+          a.volume = 1;
+        });
+      } else {
+        a.pause();
+        a.volume = 1;
+      }
+      fileUnlocked = true;
+    } catch (e) {
+      /* не страшно */
+    }
+  }
+
+  function playFile(name, rate) {
+    var files = buildSounds();
+    if (!files || !files[name]) return false;
+    var entry = files[name];
+    var a = entry.list[entry.idx % entry.list.length];
+    entry.idx += 1;
+    try {
+      a.volume = 1;
+      a.playbackRate = rate || 1;
+      a.currentTime = 0;
+      var p = a.play();
+      if (p && p.catch) p.catch(function () {});
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* запасной путь через Web Audio, если файл не проигрался */
+  function tone(type, f0, f1, vol, delay, dur) {
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    try {
+      if (ctx.state === 'suspended') ctx.resume();
+      var t = ctx.currentTime + (delay || 0);
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(f0, t);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + dur + 0.03);
+    } catch (e) {
+      /* звук не критичен */
+    }
+  }
+
+  function playSound(name, rate, fallbackFreq) {
+    if (!soundOn) return;
+    unlockAudio();
+    var played = playFile(name, rate);
+    if (!played && fallbackFreq) tone('sine', fallbackFreq, fallbackFreq * 0.6, 0.12, 0, 0.16);
+  }
+
+  function soundSelect() {
+    playSound('pick', 1, 420);
+  }
+
+  function soundPour(count) {
+    playSound('pour', 0.9 + (4 - count) * 0.05, 320);
+  }
+
+  function soundBad() {
+    if (!soundOn) return;
+    tone('sawtooth', 170, 110, 0.06, 0, 0.15);
+  }
+
+  function soundExtra() {
+    playSound('extra', 1, 260);
+  }
+
+  function soundWin() {
+    playSound('win', 1, 620);
+  }
+
+  function soundReveal() {
+    playSound('pick', 1.35, 520);
+  }
+
+  function updateSoundBtn() {
+    if (!els.soundBtn) return;
+    els.soundBtn.classList.toggle('muted', !soundOn);
+    els.soundBtn.setAttribute('aria-label', soundOn ? 'Звук включён' : 'Звук выключен');
+  }
+
+  function toggleSound() {
+    soundOn = !soundOn;
+    saveSettings();
+    updateSoundBtn();
+    unlockAudio();
+    unlockFiles();
+    if (soundOn) playFile('test');
+  }
+
+  function checkSound() {
+    if (!soundOn) {
+      soundOn = true;
+      saveSettings();
+      updateSoundBtn();
+    }
+    unlockAudio();
+    unlockFiles();
+    var played = playFile('test');
+    var ctx = ensureAudio();
+    var web = ctx ? ctx.state : 'недоступен';
+    toast('Проверка звука: файл ' + (played ? 'играет' : 'не запустился') +
+      ', веб-аудио: ' + web + '. Если тишина — проверь переключатель «Без звука» на боку iPhone');
+  }
+
+  function toast(text) {
+    if (!els.toast) return;
+    els.toast.textContent = text;
+    els.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      els.toast.classList.remove('show');
+    }, 3200);
   }
 
   /* ---------- память ---------- */
@@ -91,28 +404,34 @@
     if (!dailyData) return;
     dailyData.colors = colors;
     dailyData.empties = empties;
+    dailyData.caps = caps;
     dailyData.flasks = flasks;
     dailyData.initial = initial;
     dailyData.undo = undoStack;
     dailyData.moves = moves;
     dailyData.par = par;
     dailyData.extraUsed = extraUsed;
+    dailyData.hidden = hidden;
+    dailyData.revealed = revealed;
   }
 
   function saveProgress() {
     if (mode === 'daily') syncDaily();
     var payload = {
-      v: 3,
+      v: 4,
       mode: mode,
       level: level,
       colors: colors,
       empties: empties,
+      caps: caps,
       flasks: flasks,
       initial: initial,
       undo: undoStack,
       moves: moves,
       par: par,
       extraUsed: extraUsed,
+      hidden: hidden,
+      revealed: revealed,
       campaign: mode === 'daily' ? campaignStash : null,
       daily: dailyData,
       stars: stars,
@@ -124,7 +443,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (e) {
-      /* нет места или приватный режим — играем дальше без сохранения */
+      /* нет места — играем дальше без сохранения */
     }
   }
 
@@ -144,7 +463,7 @@
     }
     if (!data || typeof data.level !== 'number' || !Array.isArray(data.flasks)) return null;
     var sane = data.flasks.every(function (f) {
-      return Array.isArray(f) && f.length <= E.CAP;
+      return Array.isArray(f) && f.length <= 6;
     });
     if (!sane || data.flasks.length < 3) return null;
     return data;
@@ -169,174 +488,6 @@
     }
   }
 
-  /* ---------- звук ---------- */
-
-  var audio = null;
-
-  function ensureAudio() {
-    if (audio) return audio;
-    try {
-      var Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) return null;
-      audio = new Ctx();
-    } catch (e) {
-      audio = null;
-    }
-    return audio;
-  }
-
-  /* iOS включает звук только после первого касания экрана */
-  function unlockAudio() {
-    var ctx = ensureAudio();
-    if (!ctx) return;
-    try {
-      if (ctx.state === 'suspended') ctx.resume();
-      var buf = ctx.createBuffer(1, 1, 22050);
-      var src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.start(0);
-    } catch (e) {
-      /* не страшно */
-    }
-  }
-
-  /* Пока звук заблокирован браузером, ждём разрешения и только потом играем:
-     иначе на iPhone первый звук уходит «в пустоту». */
-  function whenReady(ctx, run) {
-    if (ctx.state === 'running') {
-      run();
-      return;
-    }
-    try {
-      var p = ctx.resume();
-      if (p && typeof p.then === 'function') {
-        p.then(run).catch(function () { run(); });
-      } else {
-        run();
-      }
-    } catch (e) {
-      run();
-    }
-  }
-
-  function playTone(ctx, type, f0, f1, vol, delay, dur) {
-    try {
-      var t = ctx.currentTime + (delay || 0);
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(f0, t);
-      osc.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur);
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(vol, t + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(t);
-      osc.stop(t + dur + 0.03);
-    } catch (e) {
-      /* звук не критичен */
-    }
-  }
-
-  function tone(type, f0, f1, vol, delay, dur) {
-    if (!soundOn) return;
-    var ctx = ensureAudio();
-    if (!ctx) return;
-    whenReady(ctx, function () {
-      playTone(ctx, type, f0, f1, vol, delay, dur);
-    });
-  }
-
-  function playSplash(ctx, vol, delay) {
-    try {
-      var t = ctx.currentTime + (delay || 0);
-      var len = Math.floor(ctx.sampleRate * 0.12);
-      var buffer = ctx.createBuffer(1, len, ctx.sampleRate);
-      var data = buffer.getChannelData(0);
-      for (var i = 0; i < len; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.2);
-      }
-      var src = ctx.createBufferSource();
-      src.buffer = buffer;
-      var filter = ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.value = 1100;
-      filter.Q.value = 0.9;
-      var gain = ctx.createGain();
-      gain.gain.value = vol;
-      src.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      src.start(t);
-    } catch (e) {
-      /* не страшно */
-    }
-  }
-
-  function splash(vol, delay) {
-    if (!soundOn) return;
-    var ctx = ensureAudio();
-    if (!ctx) return;
-    whenReady(ctx, function () {
-      playSplash(ctx, vol, delay);
-    });
-  }
-
-  function soundSelect() {
-    tone('sine', 430, 320, 0.06, 0, 0.07);
-  }
-
-  function soundPour(count) {
-    tone('sine', 340 - count * 12, 150, 0.12, 0, 0.2);
-    tone('triangle', 660 - count * 30, 340, 0.05, 0.01, 0.16);
-    splash(0.05, 0.02);
-  }
-
-  function soundBad() {
-    tone('sawtooth', 170, 110, 0.055, 0, 0.15);
-  }
-
-  function soundExtra() {
-    tone('sine', 250, 540, 0.07, 0, 0.16);
-    splash(0.03, 0.05);
-  }
-
-  function soundWin() {
-    tone('triangle', 523, 523, 0.09, 0, 0.18);
-    tone('triangle', 659, 659, 0.09, 0.1, 0.18);
-    tone('triangle', 784, 784, 0.1, 0.2, 0.3);
-    splash(0.03, 0.2);
-  }
-
-  function updateSoundBtn() {
-    if (!els.soundBtn) return;
-    els.soundBtn.classList.toggle('muted', !soundOn);
-    els.soundBtn.setAttribute('aria-label', soundOn ? 'Звук включён' : 'Звук выключен');
-  }
-
-  function toggleSound() {
-    soundOn = !soundOn;
-    saveSettings();
-    updateSoundBtn();
-    unlockAudio();
-    if (soundOn) {
-      tone('triangle', 523, 523, 0.08, 0, 0.14);
-      tone('triangle', 784, 784, 0.08, 0.12, 0.22);
-    }
-  }
-
-  function toast(text) {
-    if (!els.toast) return;
-    els.toast.textContent = text;
-    els.toast.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () {
-      els.toast.classList.remove('show');
-    }, 2400);
-  }
-
   /* ---------- шапка ---------- */
 
   function setHeader() {
@@ -349,12 +500,16 @@
       return;
     }
     var emptyCount = 0;
+    var bigCount = 0;
     for (var i = 0; i < flasks.length; i++) {
       if (!flasks[i].length) emptyCount += 1;
+      if (caps[i] > E.CAP) bigCount += 1;
     }
+    var bits = [colors + ' ' + plural(colors, 'цвет', 'цвета', 'цветов')];
+    if (bigCount > 0) bits.push(bigCount + ' ' + plural(bigCount, 'большая колба', 'большие колбы', 'больших колб'));
+    bits.push(emptyCount + ' ' + plural(emptyCount, 'запасная', 'запасные', 'запасных'));
     els.levelLabel.textContent = 'Уровень ' + level;
-    els.levelSub.textContent = colors + ' ' + plural(colors, 'цвет', 'цвета', 'цветов') +
-      ' · ' + emptyCount + ' ' + plural(emptyCount, 'запасная колба', 'запасные колбы', 'запасных колб');
+    els.levelSub.textContent = bits.join(' · ');
   }
 
   /* ---------- переходы между досками ---------- */
@@ -363,6 +518,9 @@
     colors = src.colors || 3;
     empties = src.empties || 2;
     flasks = cloneBoard(src.flasks || []);
+    caps = Array.isArray(src.caps) && src.caps.length === flasks.length
+      ? src.caps.slice()
+      : new Array(flasks.length).fill(E.CAP);
     initial = src.initial && src.initial.length === flasks.length ? cloneBoard(src.initial) : cloneBoard(flasks);
     undoStack = Array.isArray(src.undo) ? src.undo.filter(function (m) {
       return m && typeof m.from === 'number' && typeof m.to === 'number' && typeof m.count === 'number';
@@ -370,6 +528,9 @@
     moves = typeof src.moves === 'number' ? src.moves : 0;
     par = typeof src.par === 'number' && src.par > 0 ? src.par : null;
     extraUsed = !!src.extraUsed;
+    hidden = Array.isArray(src.hidden) ? src.hidden.slice() : [];
+    revealed = Array.isArray(src.revealed) ? src.revealed.slice() : [];
+    mysteryShown = revealed.length > 0 || hidden.length === 0;
     selected = -1;
   }
 
@@ -379,12 +540,15 @@
       level: level,
       colors: colors,
       empties: empties,
+      caps: caps.slice(),
       flasks: cloneBoard(flasks),
       initial: cloneBoard(initial),
       undo: undoStack.slice(),
       moves: moves,
       par: par,
-      extraUsed: extraUsed
+      extraUsed: extraUsed,
+      hidden: hidden.slice(),
+      revealed: revealed.slice()
     };
   }
 
@@ -396,12 +560,16 @@
     var g = E.generate(level);
     colors = g.colors;
     empties = g.empties;
+    caps = g.caps.slice();
     flasks = cloneBoard(g.state);
     initial = cloneBoard(g.state);
     undoStack = [];
     moves = 0;
     par = g.solution ? g.solution.length : null;
     extraUsed = false;
+    hidden = pickHidden(level * 101 + 7, colors);
+    revealed = [];
+    mysteryShown = hidden.length === 0;
     selected = -1;
     setHeader();
     render();
@@ -410,18 +578,21 @@
 
   function buildDaily(key) {
     var cfg = dailyConfig(key);
-    var g = E.generate(cfg.level, { colors: cfg.colors, empties: cfg.empties });
+    var g = E.generate(cfg.level, { colors: cfg.colors, empties: cfg.empties, big: cfg.big });
     return {
       key: key,
       done: false,
       colors: g.colors,
       empties: g.empties,
+      caps: g.caps.slice(),
       flasks: cloneBoard(g.state),
       initial: cloneBoard(g.state),
       undo: [],
       moves: 0,
       par: g.solution ? g.solution.length : null,
-      extraUsed: false
+      extraUsed: false,
+      hidden: pickHidden(Number(key.replace(/-/g, '')), g.colors),
+      revealed: []
     };
   }
 
@@ -469,23 +640,23 @@
           level: data.level,
           colors: data.colors,
           empties: data.empties,
+          caps: data.caps,
           flasks: data.flasks,
           initial: data.initial,
           undo: data.undo,
           moves: data.moves,
           par: data.par,
-          extraUsed: data.extraUsed
+          extraUsed: data.extraUsed,
+          hidden: data.hidden,
+          revealed: data.revealed
         };
 
     level = campaignSrc.level || 1;
     if (maxLevel < level) maxLevel = level;
 
     if (!completed) {
-      /* сохранение от версии без списка пройденных: уровни до текущего считаем пройденными */
       completed = {};
-      for (var passed = 1; passed < level; passed++) {
-        completed[String(passed)] = true;
-      }
+      for (var passed = 1; passed < level; passed++) completed[String(passed)] = true;
     }
 
     var today = todayKey();
@@ -501,7 +672,7 @@
       if (dailyData && dailyData.key !== today) dailyData = null;
     }
 
-    if (E.isSolved(flasks)) {
+    if (E.isSolved(flasks, caps)) {
       if (mode === 'daily') {
         backToCampaign();
         return;
@@ -522,12 +693,15 @@
     flaskEls = [];
 
     for (var i = 0; i < flasks.length; i++) {
+      var cap = caps[i] || E.CAP;
       var el = document.createElement('div');
       el.className = 'flask';
       if (i === selected) el.classList.add('selected');
+      if (cap > E.CAP) el.classList.add('big');
       el.dataset.i = String(i);
+      el.dataset.cap = String(cap);
       el.setAttribute('role', 'button');
-      el.setAttribute('aria-label', 'Колба ' + (i + 1));
+      el.setAttribute('aria-label', 'Колба ' + (i + 1) + ' на ' + cap + ' слоёв');
       el.tabIndex = 0;
 
       var glass = document.createElement('div');
@@ -536,11 +710,20 @@
       var body = document.createElement('div');
       body.className = 'body';
 
+      var pct = 100 / cap;
       for (var l = 0; l < flasks[i].length; l++) {
+        var colorIndex = flasks[i][l];
         var seg = document.createElement('div');
         seg.className = 'liquid';
-        seg.style.background = E.colorFor(colors, flasks[i][l]);
+        seg.style.flex = '0 0 ' + pct + '%';
+        if (isHiddenColor(colorIndex)) {
+          seg.classList.add('mystery');
+          seg.textContent = '?';
+        } else {
+          seg.style.background = E.colorFor(colors, colorIndex);
+        }
         if (anim && anim.index === i && l >= anim.from) seg.classList.add('in');
+        if (anim && anim.outIndex === i && l >= anim.outFrom) seg.classList.add('out');
         body.appendChild(seg);
       }
 
@@ -567,23 +750,33 @@
     var rows = Math.ceil(count / 7);
     var perRow = Math.ceil(count / rows);
 
+    var maxCap = E.CAP;
+    for (var i = 0; i < caps.length; i++) {
+      if (caps[i] > maxCap) maxCap = caps[i];
+    }
+
     var rect = board.getBoundingClientRect();
     var availW = Math.max(120, rect.width - 4);
     var availH = Math.max(120, rect.height - 4);
 
     var gapX = Math.max(8, Math.min(18, availW * 0.03));
-    var gapY = Math.max(14, Math.min(26, availH * 0.06));
+    var gapY = Math.max(12, Math.min(24, availH * 0.05));
 
     var maxByW = (availW - (perRow - 1) * gapX) / perRow;
-    var maxByH = (availH - (rows - 1) * gapY) / rows;
+    var rowH = (availH - (rows - 1) * gapY) / rows;
+    var unitH = rowH / maxCap;
 
-    var fw = Math.min(maxByW, maxByH / 3.2, 62);
+    var fw = Math.min(maxByW, unitH / 0.8, 60);
     fw = Math.max(24, fw);
-    var fh = fw * 3.2;
+    unitH = Math.min(unitH, fw * 0.8);
+
+    for (var f = 0; f < flaskEls.length; f++) {
+      var cap = caps[f] || E.CAP;
+      flaskEls[f].style.width = fw.toFixed(1) + 'px';
+      flaskEls[f].style.height = (unitH * cap).toFixed(1) + 'px';
+    }
 
     var root = document.documentElement.style;
-    root.setProperty('--flask-w', fw.toFixed(1) + 'px');
-    root.setProperty('--flask-h', fh.toFixed(1) + 'px');
     root.setProperty('--flask-gap', gapX.toFixed(1) + 'px');
     root.setProperty('--row-gap', gapY.toFixed(1) + 'px');
   }
@@ -601,6 +794,21 @@
 
   /* ---------- ходы ---------- */
 
+  function selectFlask(i) {
+    selected = i;
+    var opened = revealTop(i);
+    soundSelect();
+    render();
+    if (opened) {
+      soundReveal();
+      saveProgress();
+      if (!mysteryShown) {
+        mysteryShown = true;
+        toast('Открылся цвет. Другие закрытые цвета открываются, когда касаешься их колбы');
+      }
+    }
+  }
+
   function onFlaskTap(i) {
     if (locked || i < 0 || i >= flasks.length) return;
 
@@ -610,9 +818,7 @@
         soundBad();
         return;
       }
-      selected = i;
-      soundSelect();
-      render();
+      selectFlask(i);
       return;
     }
 
@@ -622,16 +828,14 @@
       return;
     }
 
-    var n = E.canPour(flasks, selected, i);
+    var n = E.canPour(flasks, selected, i, caps);
     if (n > 0) {
       doPour(selected, i, n);
       return;
     }
 
     if (flasks[i].length) {
-      selected = i;
-      soundSelect();
-      render();
+      selectFlask(i);
       shake(i);
     } else {
       shake(i);
@@ -653,7 +857,7 @@
     document.body.appendChild(s);
     setTimeout(function () {
       if (s.parentNode) s.parentNode.removeChild(s);
-    }, 420);
+    }, 460);
   }
 
   function doPour(i, j, n) {
@@ -661,31 +865,35 @@
     selected = -1;
 
     var oldLen = flasks[j].length;
+    var outFrom = flasks[i].length - n;
     var dir = j > i ? 1 : -1;
     var srcEl = flaskEls[i];
     var dstEl = flaskEls[j];
-    var color = E.colorFor(colors, flasks[i][flasks[i].length - 1]);
+    var colorIndex = flasks[i][flasks[i].length - 1];
+    var color = E.colorFor(colors, colorIndex);
 
     if (srcEl) {
       srcEl.classList.remove('selected');
       srcEl.style.setProperty('--tilt', (dir * 26) + 'deg');
       srcEl.classList.add('pouring');
+      var segs = srcEl.querySelectorAll('.liquid');
+      for (var k = outFrom; k < segs.length; k++) segs[k].classList.add('out');
     }
     if (dstEl) dstEl.classList.add('receive');
 
-    spawnStream(srcEl, dstEl, color);
+    if (!isHiddenColor(colorIndex)) spawnStream(srcEl, dstEl, color);
     soundPour(n);
 
     setTimeout(function () {
-      E.pour(flasks, i, j);
+      E.pour(flasks, i, j, caps);
       undoStack.push({ from: i, to: j, count: n });
       if (undoStack.length > 500) undoStack.shift();
       moves += 1;
       render({ index: j, from: oldLen });
       locked = false;
       saveProgress();
-      if (E.isSolved(flasks)) {
-        setTimeout(onWin, 160);
+      if (E.isSolved(flasks, caps)) {
+        setTimeout(onWin, 170);
       }
     }, 190);
   }
@@ -699,7 +907,7 @@
     }
     moves = Math.max(0, moves - 1);
     selected = -1;
-    tone('sine', 260, 200, 0.05, 0, 0.08);
+    playSound('pick', 0.8, 260);
     render();
     saveProgress();
   }
@@ -717,9 +925,10 @@
   }
 
   function addExtraFlask() {
-    if (locked || extraUsed || E.isSolved(flasks)) return;
+    if (locked || extraUsed || E.isSolved(flasks, caps)) return;
     extraUsed = true;
     flasks.push([]);
+    caps.push(E.CAP);
     selected = -1;
     soundExtra();
     setHeader();
@@ -730,7 +939,7 @@
 
   function showHint() {
     if (locked) return;
-    var solution = E.solve(flasks, 150000);
+    var solution = E.solve(flasks, 150000, caps);
     if (!solution || !solution.length) {
       toast('Отсюда не собрать: отмени ход или начни заново');
       soundBad();
@@ -751,10 +960,10 @@
       if (to) to.classList.remove('hint-to');
     }, 1900);
 
-    tone('sine', 700, 620, 0.045, 0, 0.09);
+    tone('sine', 700, 620, 0.05, 0, 0.09);
   }
 
-  /* ---------- звёзды и победа ---------- */
+  /* ---------- звёзды, победа, конфетти ---------- */
 
   function bestOf(lv) {
     var value = completed[String(lv)];
@@ -768,7 +977,7 @@
 
   function ensurePar() {
     if (typeof par === 'number' && par > 0) return par;
-    var solution = E.solve(initial, 150000);
+    var solution = E.solve(initial, 150000, caps);
     par = solution ? solution.length : null;
     return par;
   }
@@ -784,9 +993,29 @@
   function showStars(count) {
     var html = '';
     for (var i = 1; i <= 3; i++) {
-      html += '<span class="' + (i <= count ? 'on' : '') + '">★</span>';
+      html += '<span class="' + (i <= count ? 'on' : '') + '" style="animation-delay:' +
+        ((i - 1) * 0.12).toFixed(2) + 's">★</span>';
     }
     els.winStars.innerHTML = html;
+  }
+
+  function confetti() {
+    for (var i = 0; i < 16; i++) {
+      var d = document.createElement('div');
+      d.className = 'confetti';
+      d.style.left = (8 + Math.random() * 84) + 'vw';
+      d.style.background = E.PALETTE[i % E.PALETTE.length];
+      d.style.animationDelay = (Math.random() * 0.3).toFixed(2) + 's';
+      d.style.animationDuration = (1.1 + Math.random() * 0.8).toFixed(2) + 's';
+      d.style.width = (5 + Math.random() * 5).toFixed(0) + 'px';
+      d.style.height = (8 + Math.random() * 8).toFixed(0) + 'px';
+      document.body.appendChild(d);
+      (function (el) {
+        setTimeout(function () {
+          if (el.parentNode) el.parentNode.removeChild(el);
+        }, 2400);
+      }(d));
+    }
   }
 
   function showWin(opts) {
@@ -799,6 +1028,7 @@
     els.win.classList.remove('hidden');
     els.win.setAttribute('aria-hidden', 'false');
     soundWin();
+    confetti();
   }
 
   function finishLevel() {
@@ -969,12 +1199,16 @@
     els.levelsContinue = $('levelsContinue');
     els.dailyCard = $('dailyCard');
     els.dailySub = $('dailySub');
+    els.soundTest = $('soundTest');
 
     loadSettings();
     updateSoundBtn();
 
     ['pointerdown', 'touchstart', 'click', 'keydown'].forEach(function (ev) {
-      document.addEventListener(ev, unlockAudio, { once: true, capture: true, passive: true });
+      document.addEventListener(ev, function () {
+        unlockAudio();
+        unlockFiles();
+      }, { once: true, capture: true, passive: true });
     });
 
     els.flasks.addEventListener('click', function (e) {
@@ -996,6 +1230,7 @@
     els.levels.addEventListener('click', function (e) {
       if (e.target === els.levels) closeLevels();
     });
+    if (els.soundTest) els.soundTest.addEventListener('click', checkSound);
     els.levelsGrid.addEventListener('click', function (e) {
       var cell = e.target;
       while (cell && cell !== els.levelsGrid && !cell.classList.contains('level-cell')) {
