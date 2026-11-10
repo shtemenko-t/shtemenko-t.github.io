@@ -247,8 +247,10 @@
   function generate(level, options) {
     var opts = options || {};
     var cfg = levelConfig(level);
-    var colors = cfg.colors;
-    var empties = cfg.empties;
+    var colors = opts.colors ? Math.max(3, Math.min(PALETTE.length, opts.colors)) : cfg.colors;
+    var empties = typeof opts.empties === 'number'
+      ? Math.max(1, Math.min(3, opts.empties))
+      : cfg.empties;
     var needMixed = Math.max(2, Math.ceil(colors * 0.6));
     var minLen = colors + 2;
     var budget = opts.budget || 30000;

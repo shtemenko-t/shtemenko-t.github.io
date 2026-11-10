@@ -44,6 +44,10 @@
     <div id="flasks" class="flasks"></div>
   </main>
 
+  <div class="boosters">
+    <button id="addFlask" class="chip" type="button">＋ запасная колба</button>
+  </div>
+
   <footer class="actions">
     <button id="hint" class="btn" type="button">Подсказка</button>
     <button id="undo" class="btn" type="button" disabled>Отменить</button>
@@ -54,9 +58,9 @@
 
   <div id="win" class="win hidden" aria-hidden="true">
     <div class="win-card">
-      <div class="win-emoji">✨</div>
+      <div class="stars" id="winStars"></div>
       <div class="win-title" id="winTitle">Уровень пройден</div>
-      <div class="win-sub">ходов: <span id="winMoves">0</span> · лучший: <span id="winBest">—</span></div>
+      <div class="win-sub" id="winSub">ходов: <span>0</span></div>
       <div class="win-record hidden" id="winRecord">Новый рекорд!</div>
       <button id="next" class="btn primary" type="button">Следующий уровень</button>
       <button id="again" class="btn ghost" type="button">Повторить</button>
@@ -69,6 +73,10 @@
         <div class="levels-title">Уровни</div>
         <button id="levelsClose" class="close" type="button" aria-label="Закрыть">×</button>
       </div>
+      <button id="dailyCard" class="daily-card" type="button">
+        <span class="daily-title">Задание дня</span>
+        <span class="daily-sub" id="dailySub">сыграть</span>
+      </button>
       <div class="levels-summary" id="levelsSummary"></div>
       <div class="levels-grid" id="levelsGrid"></div>
       <button id="levelsContinue" class="btn primary" type="button">Продолжить</button>
