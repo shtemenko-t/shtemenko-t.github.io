@@ -123,15 +123,15 @@
 
   /* ---- пул из 3 вариантов + проигрывание ---- */
   /* ============================================================
-     БУЛЬКАНЬЕ: вода выходит из узкого горлышка толчками, воздух заходит
-     внутрь пузырями — «буль-буль». Каждый булёк: синус 150–280 Гц с ростом
-     частоты в 1.7–2.2 раза за 55–90 мс (так звучит лопающийся пузырь),
-     глухой «тук» на пол-октавы ниже и короткий мокрый шум через полосовой
-     фильтр. Под бульками — тихое журчание (розовый шум ниже 700 Гц).
-     Темп 9–12 бульков в секунду, срез выше 2.6 кГц — без «металла».
+     БУЛЬКАНЬЕ (версия 14), по разбору референса:
+     • «буль» — низкий гудящий тон 115–140 Гц с дрожанием ~34 Гц, призвук
+       около 800 Гц (узкая полоса шума + тихий синус) и щелчок в начале,
+       длина 0.13–0.17 с;
+     • под ним — россыпь мелких пузырьков 600–1050 Гц (короткие синусы
+       по 6–14 мс с подъёмом частоты) и мягкий шум с центром 800 Гц.
      ============================================================ */
   function makeGlugWav(seed, dur) {
-    dur = dur || .5; seed = seed || 1;
+    dur = dur || .6; seed = seed || 1;
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (!OAC) return Promise.resolve(null);
     const len = Math.round(SR * dur), rand = rng(seed);
@@ -139,54 +139,77 @@
     try { ctx = new OAC(1, len, SR); } catch (e) { return Promise.resolve(null); }
 
     const master = ctx.createGain(); master.gain.value = .9;
-    const mLP = ctx.createBiquadFilter(); mLP.type = 'lowpass'; mLP.frequency.value = 2600; mLP.Q.value = .5;
-    const mHP = ctx.createBiquadFilter(); mHP.type = 'highpass'; mHP.frequency.value = 60; mHP.Q.value = .5;
+    const mLP = ctx.createBiquadFilter(); mLP.type = 'lowpass'; mLP.frequency.value = 4200; mLP.Q.value = .5;
+    const mHP = ctx.createBiquadFilter(); mHP.type = 'highpass'; mHP.frequency.value = 45; mHP.Q.value = .5;
     mHP.connect(mLP); mLP.connect(master); master.connect(ctx.destination);
 
+    /* все усилители стартуют с нуля: иначе до своего момента они пропускают шум */
+    const zeroGain = () => { const g = ctx.createGain(); g.gain.value = 0; return g; };
     const noise = ctx.createBufferSource(); noise.buffer = pinkBuffer(ctx, len, rand);
+    const sources = [noise];
 
-    // тихое журчание под бульками
-    const tr = ctx.createBiquadFilter(); tr.type = 'lowpass'; tr.frequency.value = 700; tr.Q.value = .7;
-    const trG = ctx.createGain();
-    trG.gain.setValueAtTime(0, 0); trG.gain.linearRampToValueAtTime(.2, .04);
-    trG.gain.setValueAtTime(.2, dur - .12); trG.gain.linearRampToValueAtTime(0, dur - .01);
-    noise.connect(tr); tr.connect(trG); trG.connect(mHP);
+    function env(g, t, a, peak, hold, tail) {
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(peak, t + a);
+      g.gain.linearRampToValueAtTime(peak * .8, t + hold);
+      g.gain.exponentialRampToValueAtTime(.0008, t + hold + tail);
+    }
 
-    const oscs = [noise];
-    function glug(t, f0, L, amp) {
-      // пузырь: тон с ростом частоты
-      const o = ctx.createOscillator(); o.type = 'sine';
-      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * (1.7 + rand() * .5), t + L);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(amp, t + .006);
-      g.gain.exponentialRampToValueAtTime(.0008, t + L + .03);
-      o.connect(g); g.connect(mHP); o.start(t); o.stop(t + L + .04); oscs.push(o);
-      // глухой «тук» снизу
+    function bul(t, f0, L, amp) {
+      // щелчок
+      const ck = ctx.createBiquadFilter(); ck.type = 'bandpass'; ck.frequency.value = 1800; ck.Q.value = .7;
+      const ckG = zeroGain();
+      ckG.gain.setValueAtTime(0, t); ckG.gain.linearRampToValueAtTime(amp * 1.4, t + .002);
+      ckG.gain.exponentialRampToValueAtTime(.0008, t + .014);
+      noise.connect(ck); ck.connect(ckG); ckG.connect(mHP);
+      // низкий гул с дрожанием
+      const o = ctx.createOscillator(); o.type = 'triangle';
+      o.frequency.setValueAtTime(f0 * .92, t); o.frequency.linearRampToValueAtTime(f0, t + .03);
+      o.frequency.linearRampToValueAtTime(f0 * 1.06, t + L);
+      const vib = ctx.createOscillator(); vib.frequency.value = 32 + rand() * 6;
+      const vibG = zeroGain(); vibG.gain.value = f0 * .07;
+      vib.connect(vibG); vibG.connect(o.frequency);
+      const g = zeroGain(); env(g, t, .012, amp, L * .7, L * .3 + .04);
+      o.connect(g); g.connect(mHP);
+      o.start(t); o.stop(t + L + .06); vib.start(t); vib.stop(t + L + .06);
+      sources.push(o, vib);
+      // призвук около 800 Гц
+      const fr = 770 + rand() * 70;
       const o2 = ctx.createOscillator(); o2.type = 'sine';
-      o2.frequency.setValueAtTime(f0 * .55, t); o2.frequency.exponentialRampToValueAtTime(f0 * .7, t + .035);
-      const g2 = ctx.createGain();
-      g2.gain.setValueAtTime(0, t); g2.gain.linearRampToValueAtTime(amp * .5, t + .004);
-      g2.gain.exponentialRampToValueAtTime(.0008, t + .045);
-      o2.connect(g2); g2.connect(mHP); o2.start(t); o2.stop(t + .05); oscs.push(o2);
-      // мокрый шум
-      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f0 * 2.4; bp.Q.value = 5;
-      const gn = ctx.createGain();
-      gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(amp * 1.1, t + .003);
-      gn.gain.exponentialRampToValueAtTime(.0008, t + .05);
+      o2.frequency.setValueAtTime(fr, t); o2.frequency.linearRampToValueAtTime(fr * 1.03, t + L);
+      const g2 = zeroGain(); env(g2, t, .015, amp * .16, L * .7, L * .3 + .03);
+      o2.connect(g2); g2.connect(mHP); o2.start(t); o2.stop(t + L + .05); sources.push(o2);
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = fr; bp.Q.value = 7;
+      const gn = zeroGain(); env(gn, t, .01, amp * 1.6, L * .7, L * .3 + .03);
       noise.connect(bp); bp.connect(gn); gn.connect(mHP);
     }
 
-    let t = .015, n = 0;
-    while (t < dur - .1) {
-      const f0 = (n === 0 ? 140 : 160) + rand() * 120;
-      glug(t, f0, .055 + rand() * .035, .55 + rand() * .3);
-      t += .085 + rand() * .03 - Math.min(.012, n * .003);
-      n++;
+    function trickle(t0, t1, density, amp) {
+      const T = t1 - t0, n = Math.round(T * density);
+      for (let i = 0; i < n; i++) {
+        const t = t0 + T * rand(), u = (t - t0) / T;
+        const w = Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.15)), .7);
+        const f = 800 + (rand() + rand() - 1) * 260;
+        const d = .006 + rand() * .008;
+        const o = ctx.createOscillator(); o.type = 'sine';
+        o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * (1.15 + rand() * .2), t + d);
+        const g = zeroGain();
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(amp * w * (.35 + .65 * rand()), t + .001);
+        g.gain.exponentialRampToValueAtTime(.0008, t + d);
+        o.connect(g); g.connect(mHP); o.start(t); o.stop(t + d + .005); sources.push(o);
+      }
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 820; bp.Q.value = 1.3;
+      const g = zeroGain();
+      g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(amp * 1.1, t0 + .07);
+      g.gain.linearRampToValueAtTime(amp * .8, t1 - .12); g.gain.linearRampToValueAtTime(0, t1);
+      noise.connect(bp); bp.connect(g); g.connect(mHP);
     }
-    // последняя капля — короткий высокий булёк
-    glug(dur - .08, 320 + rand() * 80, .04, .3);
 
-    oscs[0].start(0);
+    bul(.01, 118 + rand() * 18, .16, .85);
+    trickle(.09, dur - .02, 170, .32);
+    if (dur > .58) bul(dur * .52, 126 + rand() * 18, .13, .5);
+
+    noise.start(0);
     return renderWav(ctx);
   }
 
@@ -217,7 +240,7 @@
     const water = Promise.all([11, 29, 47].map((sd, i) => makeWaterWav(sd, .46 + i * .04))).then(uris => {
       uris.forEach(u => { if (u) { const a = new Audio(u); a.preload = 'auto'; pool.push(a); } });
     });
-    const glug = Promise.all([[7, .36], [19, .5], [31, .64]].map(v => makeGlugWav(v[0], v[1]))).then(uris => {
+    const glug = Promise.all([[7, .5], [19, .62], [31, .76]].map(v => makeGlugWav(v[0], v[1]))).then(uris => {
       if (uris.every(Boolean)) uris.forEach(u => { const a = new Audio(u); a.preload = 'auto'; glugs.push([a, new Audio(u)]); });
     });
     return Promise.all([water, glug]);

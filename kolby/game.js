@@ -7,7 +7,7 @@
   var STORAGE_KEY = 'kolby.state.v1';
   var SETTINGS_KEY = 'kolby.settings.v1';
   var SOUND_RATE = 22050;
-  var APP_VERSION = 13;
+  var APP_VERSION = 14;
 
   /* ---------- активная доска ---------- */
 
@@ -1356,6 +1356,12 @@
           liqSel: '.body',
           neck: parseFloat(srcEl.dataset.lip) || 0.3,
           tilt: currentShape() === 'tube' ? 56 : 62,
+          /* как в настоящей игре: перелив неспешный (~0.7 с), горлышко почти
+             у края приёмника, струя тонкая, наклон растёт по мере опустошения */
+          dur: 560,
+          hover: 0.1,
+          width: 0.6,
+          tiltGrow: 0.3,
           srcCount: flasks[i].length,
           dstCount: oldLen,
           color: color,

@@ -136,10 +136,10 @@
         const f = sgn * deg * Math.PI / 180, c = Math.cos(f), s = Math.sin(f), vx = sgn * neck * W_, vy = -oy * H_;
         return [Ox + vx * c - vy * s, Oy + vx * s + vy * c];
       };
-      const lipFull = lipRaw(tiltDeg * 1.1);
+      const lipFull = lipRaw(tiltDeg * (1 + (o.tiltGrow != null ? o.tiltGrow : .2) * .5));
       const fly = o.fly !== false;
       const dxT = fly ? (x1 - sgn * rd.width * .12) - lipFull[0] : 0;
-      const tyT = fly ? (rd.top - .32 * H_) - lipFull[1] : -lift * H_;
+      const tyT = fly ? (rd.top - (o.hover != null ? o.hover : .32) * H_) - lipFull[1] : -lift * H_;
       const yMid = hitY(.5), yLip = lipFull[1] + tyT;
       const Tf = clamp(Math.sqrt(2 * Math.max(30, yMid - yLip) / G), .06, .2);
       const tTilt = 140 * k, f0 = 110 * k, f1 = 270 * k, rs = 285 * k, re = 430 * k;   // подлёт — струя — возврат
@@ -179,7 +179,7 @@
         const t = now - T0, dt = Math.min(now - last, 33); last = now;
         const ein = ease(clamp(t / tTilt, 0, 1)), eout = 1 - ease(clamp((t - rs) / (re - rs), 0, 1)), e = ein * eout;
         const drain = cumFlow((t - f0) / (f1 - f0)), fill = cumFlow((t - f0 - Tf * 1000) / (f1 - f0));
-        const deg = tiltDeg * (1 + .2 * drain) * e, ty = lerp(lift0, tyT, e), tx = dxT * e;
+        const deg = tiltDeg * (1 + (o.tiltGrow != null ? o.tiltGrow : .2) * drain) * e, ty = lerp(lift0, tyT, e), tx = dxT * e;
         ss.transform = 'translate(' + tx.toFixed(2) + 'px,' + ty.toFixed(2) + 'px) rotate(' + (sgn * deg).toFixed(2) + 'deg)';
         if (keepSurface) {
           ls.transformOrigin = '50% ' + ((1 - (srcCount - n * drain) * sUnit) * 100).toFixed(2) + '%';
