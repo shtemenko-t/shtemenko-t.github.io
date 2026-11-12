@@ -7,7 +7,7 @@
   var STORAGE_KEY = 'kolby.state.v1';
   var SETTINGS_KEY = 'kolby.settings.v1';
   var SOUND_RATE = 22050;
-  var APP_VERSION = 12;
+  var APP_VERSION = 13;
 
   /* ---------- активная доска ---------- */
 
@@ -885,6 +885,7 @@
 
     setHeader();
     render();
+    checkStuck();
   }
 
   /* ---------- отрисовка ---------- */
@@ -1313,6 +1314,8 @@
     saveProgress();
     if (E.isSolved(flasks, caps)) {
       setTimeout(onWin, 170);
+    } else {
+      checkStuck();
     }
   }
 
@@ -1430,13 +1433,82 @@
 
   function showHint() {
     if (locked) return;
+    hideStuck();
     var solution = E.solve(flasks, 150000, caps);
     if (!solution || !solution.length) {
-      toast('Отсюда не собрать: отмени ход или начни заново');
-      soundBad();
+      rescueHint();
       return;
     }
-    var move = solution[0];
+    highlightMove(solution[0]);
+  }
+
+  function plural(n, one, few, many) {
+    var a = n % 10;
+    var b = n % 100;
+    if (a === 1 && b !== 11) return one;
+    if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few;
+    return many;
+  }
+
+  /* Подсказка из тупика: откатываем ходы назад, пока решатель не найдёт
+     решение, и показываем первый правильный ход оттуда. */
+  function rescueHint() {
+    var state = cloneBoard(flasks);
+    var stack = undoStack.slice();
+    var back = 0;
+    while (stack.length) {
+      var m = stack.pop();
+      for (var k = 0; k < m.count; k++) {
+        if (state[m.to].length) state[m.from].push(state[m.to].pop());
+      }
+      back += 1;
+      var sol = E.solve(state, 60000, caps);
+      if (sol && sol.length) {
+        flasks = state;
+        undoStack = stack;
+        moves = Math.max(0, moves - back);
+        selected = -1;
+        playSound('pick', 0.8, 260);
+        render();
+        saveProgress();
+        toast('Вернула на ' + back + ' ' + plural(back, 'ход', 'хода', 'ходов') +
+          ' назад — отсюда можно собрать. Подсвечен следующий ход');
+        highlightMove(sol[0]);
+        return;
+      }
+    }
+    restart();
+    toast('Начали заново — так точно можно собрать. Подсвечен первый ход');
+    var first = E.solve(flasks, 150000, caps);
+    if (first && first.length) highlightMove(first[0]);
+  }
+
+  /* ---------- окно «ходов не осталось» ---------- */
+
+  function isStuck() {
+    if (E.isSolved(flasks, caps)) return false;
+    return E.legalMoves(flasks, caps).length === 0;
+  }
+
+  function checkStuck() {
+    if (!els.stuck || !isStuck()) return;
+    setTimeout(function () {
+      if (!isStuck() || locked) return;
+      if (els.stuckExtra) els.stuckExtra.classList.toggle('hidden', extraUsed);
+      if (els.stuckUndo) els.stuckUndo.disabled = undoStack.length === 0;
+      els.stuck.classList.remove('hidden');
+      els.stuck.setAttribute('aria-hidden', 'false');
+      soundBad();
+    }, 380);
+  }
+
+  function hideStuck() {
+    if (!els.stuck) return;
+    els.stuck.classList.add('hidden');
+    els.stuck.setAttribute('aria-hidden', 'true');
+  }
+
+  function highlightMove(move) {
     selected = -1;
     render();
 
@@ -1685,6 +1757,9 @@
     els.soundBtn = $('soundBtn');
     els.toast = $('toast');
     els.win = $('win');
+    els.stuck = $('stuck');
+    els.stuckExtra = $('stuckExtra');
+    els.stuckUndo = $('stuckUndo');
     els.winTitle = $('winTitle');
     els.winSub = $('winSub');
     els.winStars = $('winStars');
@@ -1745,6 +1820,21 @@
     });
 
     els.hint.addEventListener('click', showHint);
+    if (els.stuck) {
+      $('stuckHint').addEventListener('click', showHint);
+      els.stuckExtra.addEventListener('click', function () {
+        hideStuck();
+        addExtraFlask();
+      });
+      els.stuckUndo.addEventListener('click', function () {
+        hideStuck();
+        undo();
+      });
+      $('stuckRestart').addEventListener('click', function () {
+        hideStuck();
+        restart();
+      });
+    }
     els.undo.addEventListener('click', undo);
     els.restart.addEventListener('click', restart);
     els.addFlask.addEventListener('click', addExtraFlask);
