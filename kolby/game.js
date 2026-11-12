@@ -7,7 +7,7 @@
   var STORAGE_KEY = 'kolby.state.v1';
   var SETTINGS_KEY = 'kolby.settings.v1';
   var SOUND_RATE = 22050;
-  var APP_VERSION = 10;
+  var APP_VERSION = 11;
 
   /* ---------- активная доска ---------- */
 
@@ -440,11 +440,21 @@
     playSound('pick', 1, 420);
   }
 
+  /* Звук 1 — новая вода (water-sound.js: розовый шум через полосовые фильтры,
+     журчание, пузырьки). Звуки 2–4 — прежние варианты. */
+  function waterReady() {
+    return typeof window.playWater === 'function' && window.waterSoundCount && window.waterSoundCount() > 0;
+  }
+
   function soundPour(count) {
     if (!soundOn) return;
     unlockAudio();
     unlockFiles();
-    var name = 'pour' + (soundPreset - 1);
+    if (soundPreset === 1 && waterReady()) {
+      window.playWater(0.85);
+      return;
+    }
+    var name = 'pour' + Math.max(0, soundPreset - 2);
     var rate = 0.94 + Math.random() * 0.12;
     if (!playFile(name, rate)) tone('sine', 320, 170, 0.12, 0, 0.2);
     setTimeout(function () {
@@ -484,7 +494,17 @@
     if (soundOn) playFile('test');
   }
 
-  var LAB_SOUNDS = ['pour0', 'pour1', 'pour2', 'pour3'];
+  var LAB_SOUNDS = ['water', 'pour0', 'pour1', 'pour2'];
+  var LAB_STREAMS = ['Лента', 'Гладкая', 'Капли'];
+  var POUR_MODES = ['ribbon', 'svg', 'drops'];
+
+  function playLabSound(preset) {
+    if (preset === 1 && waterReady()) {
+      window.playWater(0.85);
+      return;
+    }
+    playFile(LAB_SOUNDS[preset - 1] === 'water' ? 'pour0' : LAB_SOUNDS[preset - 1], 1);
+  }
 
   function buildLab() {
     if (!els.labSounds) return;
@@ -503,7 +523,7 @@
       sb.type = 'button';
       sb.className = 'lab-btn' + (t === streamStyle ? ' active' : '');
       sb.dataset.style = String(t);
-      sb.textContent = 'Струя ' + t;
+      sb.textContent = LAB_STREAMS[t - 1];
       els.labStreams.appendChild(sb);
     }
   }
@@ -621,8 +641,11 @@
       if (!raw) return;
       var data = JSON.parse(raw);
       soundOn = !data || data.sound !== false;
-      if (data && typeof data.streamStyle === 'number') streamStyle = data.streamStyle;
-      if (data && typeof data.soundPreset === 'number') soundPreset = data.soundPreset;
+      /* в версии 11 варианты звука и струи новые — старый выбор не переносим */
+      if (data && data.fx === 2) {
+        if (typeof data.streamStyle === 'number') streamStyle = data.streamStyle;
+        if (typeof data.soundPreset === 'number') soundPreset = data.soundPreset;
+      }
     } catch (e) {
       soundOn = true;
     }
@@ -632,6 +655,7 @@
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify({
         sound: soundOn,
+        fx: 2,
         streamStyle: streamStyle,
         soundPreset: soundPreset
       }));
@@ -1098,6 +1122,37 @@
     }, 460);
   }
 
+  function reducedMotion() {
+    try {
+      return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* Ход применяется к состоянию игры после анимации (общая часть для обоих путей). */
+  function applyPour(i, j, n, oldLen, animateIn) {
+    E.pour(flasks, i, j, caps);
+    undoStack.push({ from: i, to: j, count: n });
+    if (undoStack.length > 500) undoStack.shift();
+    moves += 1;
+    render(animateIn ? { index: j, from: oldLen } : null);
+    if (animateIn) {
+      var targetEl = flaskEls[j];
+      if (targetEl) {
+        targetEl.classList.add('wave');
+        setTimeout(function () {
+          targetEl.classList.remove('wave');
+        }, 560);
+      }
+    }
+    locked = false;
+    saveProgress();
+    if (E.isSolved(flasks, caps)) {
+      setTimeout(onWin, 170);
+    }
+  }
+
   function doPour(i, j, n) {
     locked = true;
     selected = -1;
@@ -1108,7 +1163,49 @@
     var srcEl = flaskEls[i];
     var dstEl = flaskEls[j];
     var colorIndex = flasks[i][flasks[i].length - 1];
-    var color = E.colorFor(colors, colorIndex);
+    var hidden = isHiddenColor(colorIndex);
+    var color = hidden ? '#2b3457' : E.colorFor(colors, colorIndex);
+
+    /* Новый перелив (water-pour.js): колба поднимается над приёмником и
+       наклоняется, поверхность жидкости остаётся горизонтальной, уровень
+       в источнике падает, а в приёмнике растёт прямо во время струи. */
+    if (window.WaterPour && srcEl && dstEl && !reducedMotion()) {
+      [srcEl, dstEl].forEach(function (el) {
+        el.classList.remove('selected', 'hint-from', 'hint-to', 'shake');
+      });
+      srcEl.classList.add('wp-pouring');
+      dstEl.classList.add('receive');
+      var done = false;
+      var finish = function () {
+        if (done) return;
+        done = true;
+        applyPour(i, j, n, oldLen, false);
+      };
+      var started = false;
+      try {
+        window.WaterPour.pour(srcEl, dstEl, {
+          n: n,
+          srcCap: caps[i] || E.CAP,
+          dstCap: caps[j] || E.CAP,
+          liqSel: '.body',
+          srcCount: flasks[i].length,
+          dstCount: oldLen,
+          color: color,
+          mode: POUR_MODES[streamStyle - 1] || 'ribbon',
+          onFlow: function () {
+            soundPour(n);
+          }
+        }).then(finish, finish);
+        started = true;
+      } catch (e) {
+        started = false;
+      }
+      /* страховка: если кадры анимации не пришли (вкладка в фоне), ход всё равно применится */
+      setTimeout(finish, 1500);
+      if (started) return;
+      done = true;
+      srcEl.classList.remove('wp-pouring');
+    }
 
     if (srcEl) {
       srcEl.classList.remove('selected');
@@ -1119,27 +1216,11 @@
     }
     if (dstEl) dstEl.classList.add('receive');
 
-    if (!isHiddenColor(colorIndex)) spawnStream(srcEl, dstEl, color, dir, oldLen, caps[j]);
+    if (!hidden) spawnStream(srcEl, dstEl, color, dir, oldLen, caps[j]);
     soundPour(n);
 
     setTimeout(function () {
-      E.pour(flasks, i, j, caps);
-      undoStack.push({ from: i, to: j, count: n });
-      if (undoStack.length > 500) undoStack.shift();
-      moves += 1;
-      render({ index: j, from: oldLen });
-      var targetEl = flaskEls[j];
-      if (targetEl) {
-        targetEl.classList.add('wave');
-        setTimeout(function () {
-          targetEl.classList.remove('wave');
-        }, 560);
-      }
-      locked = false;
-      saveProgress();
-      if (E.isSolved(flasks, caps)) {
-        setTimeout(onWin, 170);
-      }
+      applyPour(i, j, n, oldLen, true);
     }, 190);
   }
 
@@ -1417,6 +1498,14 @@
   /* ---------- запуск ---------- */
 
   function init() {
+    /* звук воды собирается заранее, в фоне (OfflineAudioContext не требует касания) */
+    if (typeof window.initWaterSound === 'function') {
+      try {
+        window.initWaterSound();
+      } catch (e) {
+        /* останутся прежние звуки */
+      }
+    }
     els.app = $('app');
     els.board = $('board');
     els.flasks = $('flasks');
@@ -1520,7 +1609,7 @@
         buildLab();
         unlockAudio();
         unlockFiles();
-        playFile(LAB_SOUNDS[soundPreset - 1], 1);
+        playLabSound(soundPreset);
       });
       els.labStreams.addEventListener('click', function (e) {
         var btn = e.target;
@@ -1530,7 +1619,7 @@
         saveSettings();
         buildLab();
         closeLab();
-        toast('Струя ' + streamStyle + ': перелей жидкость на доске');
+        toast('Струя «' + LAB_STREAMS[streamStyle - 1] + '»: перелей жидкость на доске');
       });
     }
     els.levelsGrid.addEventListener('click', function (e) {

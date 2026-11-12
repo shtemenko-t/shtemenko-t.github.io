@@ -957,4 +957,18 @@ button {
   transform: translateY(-48%) rotate(var(--tilt, 32deg));
   transform-origin: 50% 92%;
   z-index: 6;
+}/* ================= версия 11: перелив как вода ================= */
+
+/* колба поднимается над соседями; Safari иначе не обрезает по скруглению
+   повёрнутую жидкость внутри стекла */
+.flask.wp-pouring {
+  z-index: 20;
+}
+
+.flask.wp-pouring .glass {
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+}
+
+.flask.wp-pouring .liquid.top::before {
+  display: none;
 }
