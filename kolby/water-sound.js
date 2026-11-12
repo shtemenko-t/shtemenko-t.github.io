@@ -122,19 +122,121 @@
   }
 
   /* ---- пул из 3 вариантов + проигрывание ---- */
+  /* ============================================================
+     БУЛЬКАНЬЕ: вода выходит из узкого горлышка толчками, воздух заходит
+     внутрь пузырями — «буль-буль». Каждый булёк: синус 150–280 Гц с ростом
+     частоты в 1.7–2.2 раза за 55–90 мс (так звучит лопающийся пузырь),
+     глухой «тук» на пол-октавы ниже и короткий мокрый шум через полосовой
+     фильтр. Под бульками — тихое журчание (розовый шум ниже 700 Гц).
+     Темп 9–12 бульков в секунду, срез выше 2.6 кГц — без «металла».
+     ============================================================ */
+  function makeGlugWav(seed, dur) {
+    dur = dur || .5; seed = seed || 1;
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!OAC) return Promise.resolve(null);
+    const len = Math.round(SR * dur), rand = rng(seed);
+    let ctx;
+    try { ctx = new OAC(1, len, SR); } catch (e) { return Promise.resolve(null); }
+
+    const master = ctx.createGain(); master.gain.value = .9;
+    const mLP = ctx.createBiquadFilter(); mLP.type = 'lowpass'; mLP.frequency.value = 2600; mLP.Q.value = .5;
+    const mHP = ctx.createBiquadFilter(); mHP.type = 'highpass'; mHP.frequency.value = 60; mHP.Q.value = .5;
+    mHP.connect(mLP); mLP.connect(master); master.connect(ctx.destination);
+
+    const noise = ctx.createBufferSource(); noise.buffer = pinkBuffer(ctx, len, rand);
+
+    // тихое журчание под бульками
+    const tr = ctx.createBiquadFilter(); tr.type = 'lowpass'; tr.frequency.value = 700; tr.Q.value = .7;
+    const trG = ctx.createGain();
+    trG.gain.setValueAtTime(0, 0); trG.gain.linearRampToValueAtTime(.2, .04);
+    trG.gain.setValueAtTime(.2, dur - .12); trG.gain.linearRampToValueAtTime(0, dur - .01);
+    noise.connect(tr); tr.connect(trG); trG.connect(mHP);
+
+    const oscs = [noise];
+    function glug(t, f0, L, amp) {
+      // пузырь: тон с ростом частоты
+      const o = ctx.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * (1.7 + rand() * .5), t + L);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(amp, t + .006);
+      g.gain.exponentialRampToValueAtTime(.0008, t + L + .03);
+      o.connect(g); g.connect(mHP); o.start(t); o.stop(t + L + .04); oscs.push(o);
+      // глухой «тук» снизу
+      const o2 = ctx.createOscillator(); o2.type = 'sine';
+      o2.frequency.setValueAtTime(f0 * .55, t); o2.frequency.exponentialRampToValueAtTime(f0 * .7, t + .035);
+      const g2 = ctx.createGain();
+      g2.gain.setValueAtTime(0, t); g2.gain.linearRampToValueAtTime(amp * .5, t + .004);
+      g2.gain.exponentialRampToValueAtTime(.0008, t + .045);
+      o2.connect(g2); g2.connect(mHP); o2.start(t); o2.stop(t + .05); oscs.push(o2);
+      // мокрый шум
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f0 * 2.4; bp.Q.value = 5;
+      const gn = ctx.createGain();
+      gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(amp * 1.1, t + .003);
+      gn.gain.exponentialRampToValueAtTime(.0008, t + .05);
+      noise.connect(bp); bp.connect(gn); gn.connect(mHP);
+    }
+
+    let t = .015, n = 0;
+    while (t < dur - .1) {
+      const f0 = (n === 0 ? 140 : 160) + rand() * 120;
+      glug(t, f0, .055 + rand() * .035, .55 + rand() * .3);
+      t += .085 + rand() * .03 - Math.min(.012, n * .003);
+      n++;
+    }
+    // последняя капля — короткий высокий булёк
+    glug(dur - .08, 320 + rand() * 80, .04, .3);
+
+    oscs[0].start(0);
+    return renderWav(ctx);
+  }
+
+  function renderWav(ctx) {
+    const render = new Promise((res, rej) => {
+      try {
+        const p = ctx.startRendering(res);
+        if (p && p.then) p.then(res, rej);
+      } catch (e) { rej(e); }
+    });
+    return render.then(buf => {
+      const d = new Float32Array(buf.getChannelData(0));
+      let pk = 0; for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i]));
+      const k = pk > 0 ? .8 / pk : 1;
+      const fi = 110, fo = 330;
+      for (let i = 0; i < d.length; i++) {
+        let v = d[i] * k; if (i < fi) v *= i / fi; if (i > d.length - fo) v *= (d.length - i) / fo; d[i] = v;
+      }
+      return wavURI(d);
+    }).catch(() => null);
+  }
+
+  /* ---- пулы вариантов + проигрывание ---- */
   const pool = []; let idx = 0, ready = false;
+  const glugs = [];   // [короткий, средний, длинный] — по числу переливаемых слоёв
   function initWaterSound() {
     if (ready) return Promise.resolve(); ready = true;
-    return Promise.all([11, 29, 47].map((sd, i) => makeWaterWav(sd, .46 + i * .04))).then(uris => {
+    const water = Promise.all([11, 29, 47].map((sd, i) => makeWaterWav(sd, .46 + i * .04))).then(uris => {
       uris.forEach(u => { if (u) { const a = new Audio(u); a.preload = 'auto'; pool.push(a); } });
     });
+    const glug = Promise.all([[7, .36], [19, .5], [31, .64]].map(v => makeGlugWav(v[0], v[1]))).then(uris => {
+      if (uris.every(Boolean)) uris.forEach(u => { const a = new Audio(u); a.preload = 'auto'; glugs.push([a, new Audio(u)]); });
+    });
+    return Promise.all([water, glug]);
   }
   function playWater(vol) {
     if (!pool.length) return;
     const a = pool[idx++ % pool.length];
     try { a.currentTime = 0; a.volume = vol == null ? .7 : vol; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
   }
+  let gIdx = 0;
+  function playGlug(vol, count) {
+    if (!glugs.length) return;
+    const pair = glugs[Math.max(0, Math.min(glugs.length - 1, (count || 1) - 1))];
+    const a = pair[gIdx++ % 2];
+    try { a.currentTime = 0; a.volume = vol == null ? .8 : vol; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+  }
 
-  window.makeWaterWav = makeWaterWav; window.initWaterSound = initWaterSound; window.playWater = playWater;
+  window.makeWaterWav = makeWaterWav; window.makeGlugWav = makeGlugWav;
+  window.initWaterSound = initWaterSound; window.playWater = playWater; window.playGlug = playGlug;
   window.waterSoundCount = () => pool.length;
+  window.glugSoundCount = () => glugs.length;
 })();

@@ -7,7 +7,7 @@
   var STORAGE_KEY = 'kolby.state.v1';
   var SETTINGS_KEY = 'kolby.settings.v1';
   var SOUND_RATE = 22050;
-  var APP_VERSION = 11;
+  var APP_VERSION = 12;
 
   /* ---------- активная доска ---------- */
 
@@ -43,6 +43,7 @@
   var soundOn = true;
   var streamStyle = 1;
   var soundPreset = 1;
+  var bottleShape = 1;
   var hintTimer = 0;
   var toastTimer = 0;
   var winAction = null;
@@ -440,21 +441,34 @@
     playSound('pick', 1, 420);
   }
 
-  /* Звук 1 — новая вода (water-sound.js: розовый шум через полосовые фильтры,
-     журчание, пузырьки). Звуки 2–4 — прежние варианты. */
+  /* Звук 1 — бульканье из горлышка, звук 2 — струя воды (оба из water-sound.js),
+     звуки 3–4 — прежние варианты. */
   function waterReady() {
     return typeof window.playWater === 'function' && window.waterSoundCount && window.waterSoundCount() > 0;
+  }
+
+  function glugReady() {
+    return typeof window.playGlug === 'function' && window.glugSoundCount && window.glugSoundCount() > 0;
+  }
+
+  function playPreset(preset, count) {
+    if (preset === 1 && glugReady()) {
+      window.playGlug(0.9, count);
+      return true;
+    }
+    if ((preset === 1 || preset === 2) && waterReady()) {
+      window.playWater(0.85);
+      return true;
+    }
+    return false;
   }
 
   function soundPour(count) {
     if (!soundOn) return;
     unlockAudio();
     unlockFiles();
-    if (soundPreset === 1 && waterReady()) {
-      window.playWater(0.85);
-      return;
-    }
-    var name = 'pour' + Math.max(0, soundPreset - 2);
+    if (playPreset(soundPreset, count)) return;
+    var name = 'pour' + Math.max(0, soundPreset - 3);
     var rate = 0.94 + Math.random() * 0.12;
     if (!playFile(name, rate)) tone('sine', 320, 170, 0.12, 0, 0.2);
     setTimeout(function () {
@@ -494,16 +508,15 @@
     if (soundOn) playFile('test');
   }
 
-  var LAB_SOUNDS = ['water', 'pour0', 'pour1', 'pour2'];
+  var LAB_SOUNDS = ['Бульканье', 'Струя', 'Звук 3', 'Звук 4'];
   var LAB_STREAMS = ['Лента', 'Гладкая', 'Капли'];
   var POUR_MODES = ['ribbon', 'svg', 'drops'];
+  var LAB_SHAPES = ['Бутылочка', 'Газировка', 'Пробирка'];
+  var SHAPES = ['bottle', 'soda', 'tube'];
 
   function playLabSound(preset) {
-    if (preset === 1 && waterReady()) {
-      window.playWater(0.85);
-      return;
-    }
-    playFile(LAB_SOUNDS[preset - 1] === 'water' ? 'pour0' : LAB_SOUNDS[preset - 1], 1);
+    if (playPreset(preset, 2)) return;
+    playFile('pour' + Math.max(0, preset - 3), 1);
   }
 
   function buildLab() {
@@ -514,7 +527,7 @@
       b.type = 'button';
       b.className = 'lab-btn' + (s === soundPreset ? ' active' : '');
       b.dataset.preset = String(s);
-      b.textContent = 'Звук ' + s;
+      b.textContent = LAB_SOUNDS[s - 1];
       els.labSounds.appendChild(b);
     }
     els.labStreams.innerHTML = '';
@@ -525,6 +538,17 @@
       sb.dataset.style = String(t);
       sb.textContent = LAB_STREAMS[t - 1];
       els.labStreams.appendChild(sb);
+    }
+    if (els.labShapes) {
+      els.labShapes.innerHTML = '';
+      for (var f = 1; f <= SHAPES.length; f++) {
+        var fb = document.createElement('button');
+        fb.type = 'button';
+        fb.className = 'lab-btn' + (f === bottleShape ? ' active' : '');
+        fb.dataset.shape = String(f);
+        fb.textContent = LAB_SHAPES[f - 1];
+        els.labShapes.appendChild(fb);
+      }
     }
   }
 
@@ -642,9 +666,10 @@
       var data = JSON.parse(raw);
       soundOn = !data || data.sound !== false;
       /* в версии 11 варианты звука и струи новые — старый выбор не переносим */
-      if (data && data.fx === 2) {
+      if (data && data.fx === 3) {
         if (typeof data.streamStyle === 'number') streamStyle = data.streamStyle;
         if (typeof data.soundPreset === 'number') soundPreset = data.soundPreset;
+        if (typeof data.bottleShape === 'number') bottleShape = data.bottleShape;
       }
     } catch (e) {
       soundOn = true;
@@ -655,9 +680,10 @@
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify({
         sound: soundOn,
-        fx: 2,
+        fx: 3,
         streamStyle: streamStyle,
-        soundPreset: soundPreset
+        soundPreset: soundPreset,
+        bottleShape: bottleShape
       }));
     } catch (e) {
       /* настройка просто не запомнится */
@@ -908,6 +934,7 @@
 
       glass.appendChild(body);
       el.appendChild(glass);
+      el.appendChild(makeBottleSvg());
       frag.appendChild(el);
       flaskEls.push(el);
     }
@@ -919,6 +946,139 @@
     els.undo.disabled = undoStack.length === 0;
     els.addFlask.disabled = extraUsed;
     layout();
+  }
+
+  /* ---------- стеклянные бутылочки ----------
+     Форма считается в пикселях под реальный размер колбы: одна и та же линия
+     обрезает жидкость (clip-path у .glass) и рисует стекло (svg поверх). */
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function currentShape() {
+    return SHAPES[bottleShape - 1] || 'bottle';
+  }
+
+  /* доля ширины колбы, которую занимают горлышко и плечики над жидкостью */
+  function shapeTopK(shape) {
+    if (shape === 'tube') return 0.16;
+    if (shape === 'soda') return 0.6;
+    return 0.62;
+  }
+
+  function makeBottleSvg() {
+    var svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'bottle-svg');
+    svg.setAttribute('aria-hidden', 'true');
+    ['bottle-line', 'bottle-shine', 'bottle-shine2'].forEach(function (cls) {
+      var p = document.createElementNS(SVG_NS, 'path');
+      p.setAttribute('class', cls);
+      svg.appendChild(p);
+    });
+    return svg;
+  }
+
+  function arcPts(out, cx, cy, rx, ry, a0, a1, n) {
+    for (var k = 0; k <= n; k++) {
+      var a = (a0 + (a1 - a0) * k / n) * Math.PI / 180;
+      out.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
+    }
+  }
+
+  function bottleGeom(shape, w, h) {
+    var m = 1;
+    var cx = w / 2;
+    var side = Math.max(2.5, w * 0.075);
+    var pts = [];
+    var topH;
+    var rxb;
+    var ryb;
+    var k;
+    if (shape === 'tube') {
+      topH = w * 0.16;
+      rxb = w / 2 - m;
+      ryb = Math.min(w * 0.75, h * 0.2);
+      pts.push([m, topH * 0.35], [m + 3, m], [w - m - 3, m], [w - m, topH * 0.35]);
+      pts.push([w - m, h - m - ryb]);
+      arcPts(pts, cx, h - m - ryb, rxb, ryb, 0, 180, 14);
+      return { pts: pts, top: topH, side: side, lip: 0.36 };
+    }
+    var soda = shape === 'soda';
+    var nw = w * (soda ? 0.2 : 0.25);
+    var rw = nw + w * 0.045;
+    var rh = w * 0.075;
+    var neckH = w * (soda ? 0.1 : 0.21);
+    var shH = w * (soda ? 0.42 : 0.33);
+    topH = rh + neckH + shH;
+    rxb = w * (soda ? 0.26 : 0.3);
+    ryb = w * (soda ? 0.22 : 0.28);
+    var yS = rh + neckH;
+    var bodyTop = topH;
+    var bodyBot = h - m - ryb;
+    function halfAt(y) {
+      if (!soda) return w / 2 - m;
+      var t = (y - bodyTop) / Math.max(1, bodyBot - bodyTop);
+      var u = Math.min(1, Math.max(0, (t - 0.25) / 0.5));
+      return w / 2 - m - w * 0.075 * Math.pow(Math.sin(Math.PI * u), 2);
+    }
+    function shoulderX(a) {
+      return soda ? Math.pow(Math.sin(a), 0.8) : Math.sin(a);
+    }
+    pts.push([cx - rw, m], [cx + rw, m], [cx + rw, rh], [cx + nw, rh], [cx + nw, yS]);
+    for (k = 1; k <= 10; k++) {
+      var a = k / 10 * Math.PI / 2;
+      pts.push([cx + nw + (w / 2 - m - nw) * shoulderX(a), topH - shH * Math.cos(a)]);
+    }
+    for (k = 1; k <= 10; k++) {
+      var y1 = bodyTop + (bodyBot - bodyTop) * k / 10;
+      pts.push([cx + halfAt(y1), y1]);
+    }
+    arcPts(pts, w - m - rxb, h - m - ryb, rxb, ryb, 0, 90, 8);
+    arcPts(pts, m + rxb, h - m - ryb, rxb, ryb, 90, 180, 8);
+    for (k = 9; k >= 0; k--) {
+      var y2 = bodyTop + (bodyBot - bodyTop) * k / 10;
+      pts.push([cx - halfAt(y2), y2]);
+    }
+    for (k = 9; k >= 0; k--) {
+      var b = k / 10 * Math.PI / 2;
+      pts.push([cx - nw - (w / 2 - m - nw) * shoulderX(b), topH - shH * Math.cos(b)]);
+    }
+    pts.push([cx - nw, rh], [cx - rw, rh]);
+    return { pts: pts, top: topH, side: side, lip: nw / w + 0.02 };
+  }
+
+  function shapeFlask(el, w, h) {
+    var g = bottleGeom(currentShape(), w, h);
+    var glass = el.querySelector('.glass');
+    var body = el.querySelector('.body');
+    var svg = el.querySelector('.bottle-svg');
+    var poly = 'polygon(' + g.pts.map(function (p) {
+      return p[0].toFixed(1) + 'px ' + p[1].toFixed(1) + 'px';
+    }).join(',') + ')';
+    if (glass) {
+      glass.style.webkitClipPath = poly;
+      glass.style.clipPath = poly;
+    }
+    if (body) {
+      body.style.top = g.top.toFixed(1) + 'px';
+      body.style.left = g.side.toFixed(1) + 'px';
+      body.style.right = g.side.toFixed(1) + 'px';
+      body.style.bottom = g.side.toFixed(1) + 'px';
+    }
+    el.dataset.lip = g.lip.toFixed(3);
+    if (!svg) return;
+    svg.setAttribute('viewBox', '0 0 ' + w.toFixed(1) + ' ' + h.toFixed(1));
+    svg.setAttribute('width', w.toFixed(1));
+    svg.setAttribute('height', h.toFixed(1));
+    var paths = svg.childNodes;
+    paths[0].setAttribute('d', 'M' + g.pts.map(function (p) {
+      return p[0].toFixed(1) + ' ' + p[1].toFixed(1);
+    }).join('L') + 'Z');
+    /* блики: длинный слева, короткий справа */
+    var y0 = g.top + w * 0.1;
+    var y1 = h - w * 0.36;
+    paths[1].setAttribute('d', 'M' + (w * 0.2).toFixed(1) + ' ' + y0.toFixed(1) + 'L' + (w * 0.2).toFixed(1) + ' ' + y1.toFixed(1));
+    paths[1].style.strokeWidth = Math.max(1.6, w * 0.075).toFixed(1) + 'px';
+    paths[2].setAttribute('d', 'M' + (w * 0.8).toFixed(1) + ' ' + (g.top + w * 0.2).toFixed(1) + 'L' + (w * 0.8).toFixed(1) + ' ' + (g.top + w * 0.55).toFixed(1));
+    paths[2].style.strokeWidth = Math.max(1.2, w * 0.045).toFixed(1) + 'px';
   }
 
   function layout() {
@@ -943,16 +1103,19 @@
 
     var maxByW = (availW - (perRow - 1) * gapX) / perRow;
     var rowH = (availH - (rows - 1) * gapY) / rows;
+    var topK = shapeTopK(currentShape());
     var unitH = rowH / maxCap;
 
-    var fw = Math.min(maxByW, unitH / 0.8, 60);
+    var fw = Math.min(maxByW, rowH / (0.8 * maxCap + topK), 60);
     fw = Math.max(24, fw);
-    unitH = Math.min(unitH, fw * 0.8);
+    unitH = Math.min((rowH - topK * fw) / maxCap, fw * 0.8);
 
     for (var f = 0; f < flaskEls.length; f++) {
       var cap = caps[f] || E.CAP;
       flaskEls[f].style.width = fw.toFixed(1) + 'px';
-      flaskEls[f].style.height = (unitH * cap).toFixed(1) + 'px';
+      var fh = unitH * cap + topK * fw;
+      flaskEls[f].style.height = fh.toFixed(1) + 'px';
+      shapeFlask(flaskEls[f], fw, fh);
     }
 
     var root = document.documentElement.style;
@@ -1188,6 +1351,8 @@
           srcCap: caps[i] || E.CAP,
           dstCap: caps[j] || E.CAP,
           liqSel: '.body',
+          neck: parseFloat(srcEl.dataset.lip) || 0.3,
+          tilt: currentShape() === 'tube' ? 56 : 62,
           srcCount: flasks[i].length,
           dstCount: oldLen,
           color: color,
@@ -1538,6 +1703,7 @@
     els.lab = $('lab');
     els.labSounds = $('labSounds');
     els.labStreams = $('labStreams');
+    els.labShapes = $('labShapes');
     els.labClose = $('labClose');
     els.labDone = $('labDone');
     els.appVersion = $('appVersion');
@@ -1621,6 +1787,17 @@
         closeLab();
         toast('Струя «' + LAB_STREAMS[streamStyle - 1] + '»: перелей жидкость на доске');
       });
+      if (els.labShapes) {
+        els.labShapes.addEventListener('click', function (e) {
+          var btn = e.target;
+          while (btn && btn !== els.labShapes && !btn.classList.contains('lab-btn')) btn = btn.parentNode;
+          if (!btn || !btn.dataset || !btn.dataset.shape) return;
+          bottleShape = parseInt(btn.dataset.shape, 10);
+          saveSettings();
+          buildLab();
+          render();
+        });
+      }
     }
     els.levelsGrid.addEventListener('click', function (e) {
       var cell = e.target;
