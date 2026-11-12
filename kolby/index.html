@@ -92,6 +92,8 @@
       <div class="lab-row" id="labStreams"></div>
       <div class="lab-label">Форма бутылочек — видно сразу на доске</div>
       <div class="lab-row" id="labShapes"></div>
+      <div class="lab-label">Вибрация при касании, переливе и когда колба собрана</div>
+      <div class="lab-row" id="labHaptics"></div>
       <button id="labDone" class="btn primary" type="button">Готово</button>
     </div>
   </div>
@@ -110,7 +112,7 @@
       <div class="levels-grid" id="levelsGrid"></div>
       <button id="levelsContinue" class="btn primary" type="button">Продолжить</button>
       <button id="soundTest" class="link-btn" type="button">Проверить звук</button>
-    <button id="labBtn" class="link-btn" type="button">Лаборатория: звук, струя, бутылочки</button>
+    <button id="labBtn" class="link-btn" type="button">Лаборатория: звук, струя, бутылочки, вибрация</button>
       <div class="version" id="appVersion"></div>
     </div>
   </div>
@@ -119,6 +121,8 @@
 <script src="engine.js"></script>
 <script src="water-sound.js"></script>
 <script src="water-pour.js"></script>
+<script src="haptics.js"></script>
+<script src="fx.js"></script>
 <script src="game.js"></script>
 <script>
   if ('serviceWorker' in navigator) {

@@ -1,6 +1,6 @@
 /* Кэш приложения: после первой загрузки игра работает без интернета. */
 
-var CACHE = 'kolby-v14';
+var CACHE = 'kolby-v15';
 
 var ASSETS = [
   './',
@@ -10,6 +10,8 @@ var ASSETS = [
   './game.js',
   './water-sound.js',
   './water-pour.js',
+  './haptics.js',
+  './fx.js',
   './manifest.webmanifest',
   './icons/icon-180.png',
   './icons/icon-192.png',

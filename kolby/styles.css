@@ -1076,3 +1076,139 @@ button {
 .flask.wp-pouring {
   filter: none;
 }
+
+/* ================= версия 15: крышечки, эффекты, большая колба ================= */
+
+/* большая колба собирает только свой цвет: стекло чуть подкрашено им */
+.flask.locked .glass {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0) 30%, var(--lock-soft) 100%),
+    rgba(255, 255, 255, 0.03);
+}
+
+.flask.locked .bottle-line {
+  stroke: var(--lock);
+  stroke-width: 2px;
+}
+
+.flask.locked.selected .bottle-line,
+.flask.locked.hint-to .bottle-line {
+  stroke: rgba(126, 231, 199, 0.95);
+}
+
+/* крышечка на собранной колбе */
+.flask .cap {
+  position: absolute;
+  z-index: 3;
+  border-radius: 4px 4px 3px 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.22),
+    0 2px 4px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.flask .cap::before {
+  content: '';
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 22%;
+  height: 22%;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.flask .cap::after {
+  content: '';
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 18%;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.18);
+  box-shadow: 0 -3px 0 rgba(0, 0, 0, 0.12);
+}
+
+.flask .cap.drop {
+  animation: capDrop 0.48s cubic-bezier(0.3, 0.7, 0.4, 1) 0.18s both;
+}
+
+@keyframes capDrop {
+  0% { transform: translateY(-46px) rotate(-14deg) scale(1.08); opacity: 0; }
+  45% { transform: translateY(2px) rotate(3deg) scale(1.02); opacity: 1; }
+  62% { transform: translateY(-5px) rotate(-1deg) scale(1, 1); }
+  78% { transform: translateY(1px) scale(1.06, 0.9); }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* собранная колба: мягкое свечение и блик, пробегающий по стеклу */
+.flask.done .bottle-line {
+  stroke: rgba(255, 255, 255, 0.62);
+}
+
+.flask.flash {
+  animation: doneHop 0.55s ease-out;
+}
+
+.flask.flash .glass::before {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 45%;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+  animation: shineSweep 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes shineSweep {
+  to { left: 120%; }
+}
+
+@keyframes doneHop {
+  0% { transform: translateY(0); filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.32)); }
+  35% { transform: translateY(-7px); filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.55)); }
+  100% { transform: translateY(0); filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.32)); }
+}
+
+/* пузырьки после перелива */
+.body .bubble {
+  position: absolute;
+  z-index: 2;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  animation: bubbleUp 0.9s ease-in both;
+}
+
+@keyframes bubbleUp {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  15% { opacity: 0.9; }
+  70% { opacity: 0.8; }
+  100% { transform: translate(3px, var(--rise, -40px)) scale(1.1); opacity: 0; }
+}
+
+/* холст искр и блёсток поверх всего */
+.fx-canvas {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 60;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flask .cap.drop,
+  .flask.flash,
+  .flask.flash .glass::before,
+  .body .bubble {
+    animation: none;
+  }
+}

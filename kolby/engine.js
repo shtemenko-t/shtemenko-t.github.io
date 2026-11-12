@@ -1,7 +1,9 @@
 /* Колбы — движок уровней.
    Работает и в браузере (window.KolbyEngine), и в Node (module.exports).
    Правила: переливать можно только верхний цвет, в пустую колбу или в колбу
-   с тем же верхним цветом. Обычная колба держит 4 слоя, большая — 6. */
+   с тем же верхним цветом. Обычная колба держит 4 слоя, большая — 6.
+   Большая колба (версия 15) собирает только свой цвет: колба с номером i
+   принимает только цвет i. На старте в ней уже налито 2 слоя этого цвета. */
 
 (function (root, factory) {
   'use strict';
@@ -69,6 +71,23 @@
     return caps && typeof caps[i] === 'number' ? caps[i] : CAP;
   }
 
+  /* цвет, который принимает колба: у большой — только свой, у обычной — любой (-1) */
+  function lockOf(caps, i) {
+    return capOf(caps, i) > CAP ? i : -1;
+  }
+
+  /* старое сохранение, где в большой колбе лежат чужие цвета */
+  function hasForeignInBig(state, caps) {
+    for (var i = 0; i < state.length; i++) {
+      var lock = lockOf(caps, i);
+      if (lock < 0) continue;
+      for (var k = 0; k < state[i].length; k++) {
+        if (state[i][k] !== lock) return true;
+      }
+    }
+    return false;
+  }
+
   function topRun(flask) {
     if (!flask.length) return 0;
     var c = flask[flask.length - 1];
@@ -106,6 +125,8 @@
     if (dst.length >= dstCap) return 0;
     var c = src[src.length - 1];
     if (dst.length && dst[dst.length - 1] !== c) return 0;
+    var lock = lockOf(caps, j);
+    if (lock >= 0 && c !== lock) return 0;
     return Math.min(dstCap - dst.length, topRun(src));
   }
 
@@ -134,9 +155,11 @@
     return moves;
   }
 
-  function stateKey(state) {
+  function stateKey(state, caps) {
     var parts = new Array(state.length);
-    for (var i = 0; i < state.length; i++) parts[i] = state[i].join(',');
+    for (var i = 0; i < state.length; i++) {
+      parts[i] = (lockOf(caps, i) >= 0 ? 'B' : '') + state[i].join(',');
+    }
     parts.sort();
     return parts.join('|');
   }
@@ -177,7 +200,7 @@
     function dfs(st) {
       nodes++;
       if (nodes > limit) return null;
-      var k = stateKey(st);
+      var k = stateKey(st, caps);
       if (seen[k]) return null;
       seen[k] = true;
       var moves = order(st);
@@ -228,19 +251,27 @@
     return mixed;
   }
 
+  /* Раскладка: сначала большие колбы (в каждой 2 слоя её цвета), потом
+     обычные полные колбы со смешанными цветами, в конце пустые. */
   function randomState(caps, empties, rnd) {
-    var colored = caps.length - empties;
+    var big = 0;
+    while (big < caps.length && caps[big] > CAP) big++;
+    var colored = caps.length - empties - big;
+    var colorsCount = colored; /* обычных колб столько же, сколько цветов */
     var cells = [];
-    for (var i = 0; i < colored; i++) {
-      for (var k = 0; k < caps[i]; k++) cells.push(i);
+    for (var c = 0; c < colorsCount; c++) {
+      for (var k = 0; k < CAP; k++) cells.push(c);
     }
     cells = shuffled(cells, rnd);
     var state = new Array(caps.length);
     var pos = 0;
     for (var f = 0; f < caps.length; f++) {
-      if (f < colored) {
-        state[f] = cells.slice(pos, pos + caps[f]);
-        pos += caps[f];
+      if (f < big) {
+        state[f] = [];
+        for (var s = 0; s < caps[f] - CAP; s++) state[f].push(f);
+      } else if (f < big + colored) {
+        state[f] = cells.slice(pos, pos + CAP);
+        pos += CAP;
       } else {
         state[f] = [];
       }
@@ -255,10 +286,13 @@
     return false;
   }
 
+  /* большие колбы идут первыми и не занимают место обычной колбы своего цвета:
+     колб всего big + colors + empties, в конце одна обычная колба освободится */
   function buildCaps(colors, empties, big) {
-    var caps = new Array(colors + empties);
-    for (var i = 0; i < caps.length; i++) caps[i] = CAP;
-    for (var b = 0; b < big && b < colors; b++) caps[b] = BIG_CAP;
+    big = Math.min(big || 0, colors);
+    var caps = [];
+    for (var b = 0; b < big; b++) caps.push(BIG_CAP);
+    for (var i = 0; i < colors + empties; i++) caps.push(CAP);
     return caps;
   }
 
@@ -352,6 +386,8 @@
     mulberry32: mulberry32,
     clone: clone,
     capOf: capOf,
+    lockOf: lockOf,
+    hasForeignInBig: hasForeignInBig,
     topRun: topRun,
     isUniform: isUniform,
     isSolved: isSolved,

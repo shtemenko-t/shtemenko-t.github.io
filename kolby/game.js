@@ -7,7 +7,7 @@
   var STORAGE_KEY = 'kolby.state.v1';
   var SETTINGS_KEY = 'kolby.settings.v1';
   var SOUND_RATE = 22050;
-  var APP_VERSION = 14;
+  var APP_VERSION = 15;
 
   /* ---------- активная доска ---------- */
 
@@ -41,6 +41,7 @@
   var locked = false;
   var flaskEls = [];
   var soundOn = true;
+  var hapticsOn = true;
   var streamStyle = 1;
   var soundPreset = 1;
   var bottleShape = 1;
@@ -115,12 +116,19 @@
 
   /* ---------- закрытые цвета ---------- */
 
-  function pickHidden(seedNumber, colorsCount) {
+  function bigCountOf(list) {
+    var n = 0;
+    for (var i = 0; i < list.length; i++) if (list[i] > E.CAP) n += 1;
+    return n;
+  }
+
+  /* skip — сколько первых цветов не закрывать (цвета больших колб должны быть видны) */
+  function pickHidden(seedNumber, colorsCount, skip) {
     var count = colorsCount >= 10 ? 2 : (colorsCount >= 5 ? 1 : 0);
     if (count <= 0) return [];
     var rnd = E.mulberry32(E.hash32(seedNumber | 0));
     var pool = [];
-    for (var i = 0; i < colorsCount; i++) pool.push(i);
+    for (var i = skip || 0; i < colorsCount; i++) pool.push(i);
     var out = [];
     for (var k = 0; k < count && pool.length; k++) {
       out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
@@ -489,6 +497,21 @@
     playSound('win', 1, 620);
   }
 
+  /* крышечка защёлкнулась: короткий стеклянный «клик» и «дзынь» */
+  function soundCap() {
+    if (!soundOn) return;
+    tone('triangle', 2100, 1500, 0.07, 0, 0.05);
+    tone('sine', 1320, 1250, 0.05, 0.035, 0.22);
+    tone('sine', 1980, 1900, 0.025, 0.035, 0.18);
+  }
+
+  function haptic(name, n) {
+    var H = window.KolbyHaptics;
+    if (!H || !hapticsOn) return;
+    H.setOn(true);
+    H[name](n);
+  }
+
   function soundReveal() {
     playSound('pick', 1.35, 520);
   }
@@ -549,6 +572,17 @@
         fb.textContent = LAB_SHAPES[f - 1];
         els.labShapes.appendChild(fb);
       }
+    }
+    if (els.labHaptics) {
+      els.labHaptics.innerHTML = '';
+      [['1', 'Вибрация вкл'], ['0', 'Выкл']].forEach(function (o) {
+        var hb = document.createElement('button');
+        hb.type = 'button';
+        hb.className = 'lab-btn' + ((o[0] === '1') === hapticsOn ? ' active' : '');
+        hb.dataset.haptics = o[0];
+        hb.textContent = o[1];
+        els.labHaptics.appendChild(hb);
+      });
     }
   }
 
@@ -671,6 +705,7 @@
         if (typeof data.soundPreset === 'number') soundPreset = data.soundPreset;
         if (typeof data.bottleShape === 'number') bottleShape = data.bottleShape;
       }
+      hapticsOn = !data || data.haptics !== false;
     } catch (e) {
       soundOn = true;
     }
@@ -683,7 +718,8 @@
         fx: 3,
         streamStyle: streamStyle,
         soundPreset: soundPreset,
-        bottleShape: bottleShape
+        bottleShape: bottleShape,
+        haptics: hapticsOn
       }));
     } catch (e) {
       /* настройка просто не запомнится */
@@ -769,7 +805,7 @@
     moves = 0;
     par = g.solution ? g.solution.length : null;
     extraUsed = false;
-    hidden = pickHidden(level * 101 + 7, colors);
+    hidden = pickHidden(level * 101 + 7, colors, bigCountOf(caps));
     revealed = [];
     mysteryShown = hidden.length === 0;
     selected = -1;
@@ -793,7 +829,7 @@
       moves: 0,
       par: g.solution ? g.solution.length : null,
       extraUsed: false,
-      hidden: pickHidden(Number(key.replace(/-/g, '')), g.colors),
+      hidden: pickHidden(Number(key.replace(/-/g, '')), g.colors, bigCountOf(g.caps)),
       revealed: []
     };
   }
@@ -856,6 +892,14 @@
     level = campaignSrc.level || 1;
     if (maxLevel < level) maxLevel = level;
 
+    /* до версии 15 в большой колбе лежали любые цвета — такие доски строим заново */
+    var legacyCampaign = Array.isArray(campaignSrc.caps) &&
+      E.hasForeignInBig(campaignSrc.initial || campaignSrc.flasks, campaignSrc.caps);
+    if (dailyData && Array.isArray(dailyData.caps) &&
+      E.hasForeignInBig(dailyData.initial || dailyData.flasks, dailyData.caps)) {
+      dailyData = null;
+    }
+
     if (!completed) {
       completed = {};
       for (var passed = 1; passed < level; passed++) completed[String(passed)] = true;
@@ -865,13 +909,17 @@
     var resumeDaily = data.mode === 'daily' && dailyData && dailyData.key === today && !dailyData.done;
     if (resumeDaily) {
       mode = 'daily';
-      campaignStash = campaignSrc;
+      campaignStash = legacyCampaign ? null : campaignSrc;
       applyFields(dailyData);
     } else {
       mode = 'campaign';
       campaignStash = null;
-      applyFields(campaignSrc);
       if (dailyData && dailyData.key !== today) dailyData = null;
+      if (legacyCampaign) {
+        newLevel(level);
+        return;
+      }
+      applyFields(campaignSrc);
     }
 
     if (E.isSolved(flasks, caps)) {
@@ -901,6 +949,15 @@
       el.className = 'flask';
       if (i === selected) el.classList.add('selected');
       if (cap > E.CAP) el.classList.add('big');
+      var lock = E.lockOf(caps, i);
+      if (lock >= 0 && !isHiddenColor(lock)) {
+        var lc = E.colorFor(colors, lock);
+        el.classList.add('locked');
+        el.style.setProperty('--lock', rgba(lc, 0.9));
+        el.style.setProperty('--lock-soft', rgba(lc, 0.2));
+      }
+      var full = isFlaskDone(i);
+      if (full) el.classList.add('done');
       el.dataset.i = String(i);
       el.dataset.cap = String(cap);
       el.setAttribute('role', 'button');
@@ -936,6 +993,14 @@
       glass.appendChild(body);
       el.appendChild(glass);
       el.appendChild(makeBottleSvg());
+      if (full) {
+        var capEl = document.createElement('div');
+        capEl.className = 'cap';
+        var cc = isHiddenColor(flasks[i][0]) ? '#5b6690' : E.colorFor(colors, flasks[i][0]);
+        capEl.style.background = 'linear-gradient(180deg, ' + tint(cc, 0.45) + ', ' + cc + ' 45%, ' + tint(cc, -0.3) + ')';
+        if (anim && anim.capIndex === i) capEl.classList.add('drop');
+        el.appendChild(capEl);
+      }
       frag.appendChild(el);
       flaskEls.push(el);
     }
@@ -1065,6 +1130,16 @@
       body.style.bottom = g.side.toFixed(1) + 'px';
     }
     el.dataset.lip = g.lip.toFixed(3);
+    var capEl = el.querySelector('.cap');
+    if (capEl) {
+      var shape = currentShape();
+      var cw = shape === 'tube' ? w + 3 : w * (shape === 'soda' ? 0.62 : 0.72);
+      var ch = shape === 'tube' ? Math.max(8, w * 0.3) : Math.max(7, w * 0.24);
+      capEl.style.width = cw.toFixed(1) + 'px';
+      capEl.style.height = ch.toFixed(1) + 'px';
+      capEl.style.left = ((w - cw) / 2).toFixed(1) + 'px';
+      capEl.style.top = (-ch * 0.5).toFixed(1) + 'px';
+    }
     if (!svg) return;
     svg.setAttribute('viewBox', '0 0 ' + w.toFixed(1) + ' ' + h.toFixed(1));
     svg.setAttribute('width', w.toFixed(1));
@@ -1152,18 +1227,52 @@
     }
   }
 
+  function isFlaskDone(i) {
+    var f = flasks[i];
+    return !!f && f.length > 0 && f.length === (caps[i] || E.CAP) && E.isUniform(f);
+  }
+
+  var lockToastShown = false;
+
   function onFlaskTap(i) {
     if (locked || i < 0 || i >= flasks.length) return;
+
+    if (isFlaskDone(i)) {
+      /* колба собрана и закрыта крышечкой */
+      if (selected !== -1) {
+        selected = -1;
+        render();
+      }
+      shake(i);
+      haptic('tap');
+      return;
+    }
 
     if (selected === -1) {
       if (!flasks[i].length) {
         shake(i);
         soundBad();
+        haptic('bad');
         return;
       }
+      haptic('tap');
       selectFlask(i);
       return;
     }
+
+    var lock = E.lockOf(caps, i);
+    var srcTop = flasks[selected][flasks[selected].length - 1];
+    if (lock >= 0 && srcTop !== lock && selected !== i) {
+      shake(i);
+      soundBad();
+      haptic('bad');
+      if (!lockToastShown) {
+        lockToastShown = true;
+        toast('В большую колбу собирается только её цвет — тот, что уже налит на дне');
+      }
+      return;
+    }
+    haptic('tap');
 
     if (selected === i) {
       selected = -1;
@@ -1300,7 +1409,12 @@
     undoStack.push({ from: i, to: j, count: n });
     if (undoStack.length > 500) undoStack.shift();
     moves += 1;
-    render(animateIn ? { index: j, from: oldLen } : null);
+    var nowDone = isFlaskDone(j);
+    var anim = animateIn ? { index: j, from: oldLen } : {};
+    if (nowDone) anim.capIndex = j;
+    render(anim);
+    bubbles(j);
+    if (nowDone) celebrateDone(j);
     if (animateIn) {
       var targetEl = flaskEls[j];
       if (targetEl) {
@@ -1317,6 +1431,51 @@
     } else {
       checkStuck();
     }
+  }
+
+  /* после перелива в приёмнике поднимается несколько пузырьков */
+  function bubbles(j) {
+    var el = flaskEls[j];
+    if (!el || reducedMotion()) return;
+    var body = el.querySelector('.body');
+    if (!body || !flasks[j].length) return;
+    var fill = flasks[j].length / (caps[j] || E.CAP);
+    for (var k = 0; k < 5; k++) {
+      var b = document.createElement('i');
+      b.className = 'bubble';
+      var size = 2 + Math.random() * 3;
+      b.style.width = b.style.height = size.toFixed(1) + 'px';
+      b.style.left = (18 + Math.random() * 64).toFixed(0) + '%';
+      b.style.bottom = (Math.random() * 25).toFixed(0) + '%';
+      b.style.setProperty('--rise', (-(fill * 100 - 6) * body.clientHeight / 100).toFixed(0) + 'px');
+      b.style.animationDelay = (k * 70 + Math.random() * 60).toFixed(0) + 'ms';
+      body.appendChild(b);
+    }
+  }
+
+  /* колба собрана: крышечка падает и защёлкивается, искры её цвета */
+  function celebrateDone(j) {
+    var color = isHiddenColor(flasks[j][0]) ? '#9aa6d6' : E.colorFor(colors, flasks[j][0]);
+    setTimeout(function () {
+      soundCap();
+      haptic('done');
+      var cur = flaskEls[j];
+      if (cur) {
+        cur.classList.add('flash');
+        var r = cur.getBoundingClientRect();
+        if (window.KolbyFx) window.KolbyFx.burst(r.left + r.width / 2, r.top + 2, color);
+        setTimeout(function () {
+          cur.classList.remove('flash');
+        }, 700);
+      }
+    }, 230);
+  }
+
+  function rgba(hex, a) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return 'rgba(255,255,255,' + a + ')';
+    var n = parseInt(m[1], 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
   }
 
   function doPour(i, j, n) {
@@ -1368,6 +1527,7 @@
           mode: POUR_MODES[streamStyle - 1] || 'ribbon',
           onFlow: function () {
             soundPour(n);
+            haptic('pour', n);
           }
         }).then(finish, finish);
         started = true;
@@ -1392,6 +1552,7 @@
 
     if (!hidden) spawnStream(srcEl, dstEl, color, dir, oldLen, caps[j]);
     soundPour(n);
+    haptic('pour', n);
 
     setTimeout(function () {
       applyPour(i, j, n, oldLen, true);
@@ -1598,6 +1759,12 @@
     els.win.setAttribute('aria-hidden', 'false');
     soundWin();
     confetti();
+    haptic('win');
+    if (window.KolbyFx) {
+      var list = [];
+      for (var c = 0; c < colors; c++) list.push(E.colorFor(colors, c));
+      window.KolbyFx.rain(list);
+    }
   }
 
   function finishLevel() {
@@ -1785,6 +1952,7 @@
     els.labSounds = $('labSounds');
     els.labStreams = $('labStreams');
     els.labShapes = $('labShapes');
+    els.labHaptics = $('labHaptics');
     els.labClose = $('labClose');
     els.labDone = $('labDone');
     els.appVersion = $('appVersion');
@@ -1892,6 +2060,22 @@
           saveSettings();
           buildLab();
           render();
+        });
+      }
+      if (els.labHaptics) {
+        els.labHaptics.addEventListener('click', function (e) {
+          var btn = e.target;
+          while (btn && btn !== els.labHaptics && !btn.classList.contains('lab-btn')) btn = btn.parentNode;
+          if (!btn || !btn.dataset || !btn.dataset.haptics) return;
+          hapticsOn = btn.dataset.haptics === '1';
+          saveSettings();
+          buildLab();
+          if (hapticsOn) {
+            haptic('done');
+            var H = window.KolbyHaptics;
+            toast(H && H.native() ? 'Вибрация включена' :
+              'Вибрация включена. На iPhone она работает с iOS 18 и только когда включены «Системные тактильные сигналы»');
+          }
         });
       }
     }
