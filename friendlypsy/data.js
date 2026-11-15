@@ -71,12 +71,12 @@ const FALLBACK_DATA = [
     ],
     "age": "18+",
     "prices": {
-      "offline_ind": 3500,
-      "offline_pair": 5000,
+      "offline_ind": 4000,
+      "offline_pair": 6000,
       "online_ind": 3000,
       "online_pair": 4500
     },
-    "priceText": "Инд.: 3000₽ онлайн / 3500₽ очно (60 мин) · Пары: 4500₽ онлайн / 5000₽ очно (90 мин)",
+    "priceText": "Инд.: 3000₽ онлайн / 4000₽ очно (60 мин) · Пары: 4500₽ онлайн / 6000₽ очно (90 мин)",
     "approach": [
       "КПТ"
     ],
