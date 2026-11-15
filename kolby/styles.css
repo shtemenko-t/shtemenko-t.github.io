@@ -1212,3 +1212,16 @@ button {
     animation: none;
   }
 }
+
+/* ================= версия 17 ================= */
+/* у шапки тоже класс .top (min-height 44px) — верхний слой жидкости его
+   подхватывал и вытягивался в полтора-два квадратика */
+.liquid.top {
+  min-height: 0;
+  align-items: stretch;
+  gap: 0;
+}
+
+.liquid.mystery.top {
+  align-items: center;
+}
